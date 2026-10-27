@@ -1,0 +1,205 @@
+/* Includes ------------------------------------------------------------------*/
+#include "stm32f10x.h"
+#include "zlg7289.h"
+#include "BitBand.h"
+#include "Mouse_Drive.h"
+#include "Maze.h"
+#define   __LED  PAout(2)
+/*********************************************************************************************************
+  全局变量定义
+*********************************************************************************************************/
+static uint8    GucXStart                           = 0;                /*  起点横坐标                  */
+static uint8    GucYStart                           = 0;                /*  起点纵坐标                  */
+
+static uint8    GucXGoal0                           = XDST0;            /*  终点X坐标，有两个值         */
+static uint8    GucXGoal1                           = XDST1;
+static uint8    GucYGoal0                           = YDST0;            /*  终点Y坐标，有两个值         */
+static uint8    GucYGoal1                           = YDST1;
+
+static uint8    GucMouseTask                        =  0 ;             /*  状态机，初始状态为等待      */
+
+static uint8    GucMapStep[MAZETYPE][MAZETYPE]      = {0xff};           /*  保存各坐标的等高值          */
+static uint8    GucMapStep1[MAZETYPE][MAZETYPE]     = {0xff};            /*  保存各坐标的等高值          */
+
+static MAZECOOR GmcStack[MAZETYPE * MAZETYPE]       = {0};              /*  在mapStepEdit()中作堆栈使用 */
+static MAZECOOR GmcStack1[MAZETYPE * MAZETYPE]      = {0};
+static MAZECOOR GmcCrossway[MAZETYPE * MAZETYPE]    = {0};              /*  Main()中暂存未走过支路坐标  */
+//static uint8    GucMapBlock2[MAZETYPE][MAZETYPE]    = {0};              /*墙壁资料备份供到达终点后回起点或冲刺失败重新冲刺调用*/
+static uint8    GucMouseTurn                        =0;
+
+extern __IO uint16_t ADC_ConvertedValue[5];
+float ADC_ConvertedValueLocal[4]; 
+double ADC_ConvertedValueLocal1;
+float w=0;
+u16 voltageDetectRef;
+ extern uint8    GucGoHead;
+
+
+void RCC_Init(void)
+{    
+    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA | RCC_APB2Periph_GPIOB | 
+                           RCC_APB2Periph_GPIOC | RCC_APB2Periph_GPIOD | 
+                           RCC_APB2Periph_GPIOE |RCC_APB2Periph_AFIO, ENABLE);
+}
+
+// mode:JTAG,SWD模式设置；00，全使能，01使能SWD，10全关闭
+void JTAG_Set(u8 mode)
+{
+    u32 temp;
+    temp<<=25;
+    RCC->APB2ENR|=1<<0;
+    AFIO->MAPR&=0XF8FFFFFF;
+    AFIO->MAPR|=temp;
+}
+
+
+void __ir_Get(void)
+{    
+      uint16    DIS1[10] = {0};
+      STMFLASH_Read(IR_SAVE_ADDRESS,(u16 *)DIS1,10);
+      delay(1000000);
+      GusDistance_L_Near=DIS1[0];
+      GusDistance_R_Near=DIS1[1];
+      GusDistance_L_Mid=DIS1[2];
+      GusDistance_R_Mid=DIS1[3]; 
+      GusDistance_L_Far=DIS1[4];
+      GusDistance_R_Far=DIS1[5];
+      GusDistance_FL_Far=DIS1[6];
+      GusDistance_FR_Far=DIS1[7];
+}
+
+main (void)
+{
+    uint8 n          = 0;                                               /*  GmcCrossway[]下标           */
+    uint8 ucRoadStat = 0;                                               /*  统计某一坐标可前进的支路数  */
+    uint8 ucTemp     = 0;                                               /*  用于START状态中坐标转换 */
+    uint8 start=0;
+    SystemInit();
+    RCC_Init();
+    JTAG_Set(1);
+    MouseInit();
+    PIDInit(); 
+    ZLG7289Init();
+    delay(100000);
+    __ir_Get();
+    delay(100000);
+    while (1) {
+        switch (GucMouseTask) {                                         /*  状态机处理                  */     
+            case WAIT:
+               sensorDebug();
+               delay(10000);
+               if (startCheck() == true) 
+               {       
+                 start=1;   
+                }
+               if(start&&GucGoHead)
+               {
+                  start=0;
+                  zlg7289Reset(); 
+                  GucMouseTask = START;
+                  while(GucGoHead);
+                  delay(1000000);
+               }
+                 break;
+        case START:                                                     /*  判断电脑鼠起点的横坐标      */
+            mazeSearch();                                               /*  向前搜索                    */
+            if (GucMapBlock[GmcMouse.cX][GmcMouse.cY] & 0x08) {         /*  判断电老鼠左边是否存在出口  */
+                if (MAZETYPE == 16) {                                    /*  修改四分之一迷宫的终点坐标  */
+                    GucXGoal0 = 8;
+                    GucXGoal1 = 7;
+                }
+                GucXStart   = MAZETYPE - 1;                             /*  修改电脑鼠起点的横坐标      */
+                GmcMouse.cX = MAZETYPE - 1;                             /*  修改电脑鼠当前位置的横坐标  */    
+                /*
+                 *  由于默认的起点为(0,0)，现在需要把已记录的墙壁资料转换过来
+                 */
+                ucTemp = GmcMouse.cY;
+                do {
+                    GucMapBlock[MAZETYPE - 1][ucTemp] = GucMapBlock[0][ucTemp];
+                    GucMapBlock[0 ][ucTemp] = 0;
+                }while (ucTemp--);
+                /*
+                 *  在OFFSHOOT[0]中保存起点坐标
+                 */
+                GmcCrossway[n].cX = MAZETYPE - 1;
+                GmcCrossway[n].cY = 0;
+                n++;
+                GucMouseTask = MAZESEARCH;                              /*  状态转换为搜寻状态          */
+            }
+            if (GucMapBlock[GmcMouse.cX][GmcMouse.cY] & 0x02) {         /*  判断电老鼠右边是否存在出口  */
+                /*
+                 *  在OFFSHOOT[0]中保存起点坐标
+                 */
+                GmcCrossway[n].cX = 0;
+                GmcCrossway[n].cY = 0;
+                n++;
+                GucMouseTask = MAZESEARCH;                              /*  状态转换为搜寻状态          */
+            }
+            break;
+            
+        case MAZESEARCH: 
+          if (((GmcMouse.cX==GucXGoal0)&&(GmcMouse.cY==GucYGoal0))||((GmcMouse.cX==GucXGoal0)&&(GmcMouse.cY==GucYGoal1))
+           ||((GmcMouse.cX==GucXGoal1)&&(GmcMouse.cY==GucYGoal0))||((GmcMouse.cX==GucXGoal1)&&(GmcMouse.cY==GucYGoal1)))
+            /*   判断是否到达终点   */
+          {    
+             mouseTurnback();
+             objectGoTo(GucXStart,GucYStart);
+             mouseTurnback_Y();
+             GucMouseTask = SPURT;
+             break;
+          }          
+          else{
+            ucRoadStat = crosswayCheck(GmcMouse.cX,GmcMouse.cY);        /*  统计可前进的支路数          */
+            if (ucRoadStat) 
+            {                                                           /*  有可前进方向                */
+                if (ucRoadStat > 1) 
+                {                                   /*  有多条可前进方向，保存坐标  */
+                    GmcCrossway[n].cX = GmcMouse.cX;
+                    GmcCrossway[n].cY = GmcMouse.cY;
+                    n++;
+                }
+                crosswayChoice();                                       /*  用右手法则搜索选择前进方向  */
+                mazeSearch();                                           /*  前进一格                    */
+            } 
+               else if(ucRoadStat==1)
+              {
+                  crosswayChoice();                                       /*  用中心法则搜索选择前进方向  */
+                  mazeSearch();
+              }
+              else 
+             {                                                    /*  没有可前进方向，回到最近支路*/
+                mouseTurnback();
+                n=n-1;
+                objectGoTo(GmcCrossway[n].cX,GmcCrossway[n].cY);
+                
+                ucRoadStat = crosswayCheck(GmcMouse.cX,GmcMouse.cY);
+                if (ucRoadStat > 1) {
+                    GmcCrossway[n].cX = GmcMouse.cX;
+                    GmcCrossway[n].cY = GmcMouse.cY;
+                    n++;     
+                } 
+                crosswayChoice();
+                mazeSearch();                            
+            }
+          }
+            break;
+
+        case SPURT:
+             mouseSpurt();                                          /*  以最优路径冲向终点          */                                            
+             mouseTurnback();
+             objectGoTo(GucXStart,GucYStart);                      /*  回起点          */     
+             mouseTurnback_Y();                                            /*  向后转，恢复出发姿势        */
+            while (1) 
+            {
+                if (startCheck() == true)
+                {
+                    break;
+                }
+            }
+            break;
+       
+        default:
+            break;
+        }
+    }
+}
