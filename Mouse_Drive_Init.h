@@ -32,7 +32,7 @@
   包含头文件
 *********************************************************************************************************/
 #include "stm32f10x.h"
-#include "Zlg7289.h"
+#include "zlg7289.h"
 #include "Type.h"
 #include "Micromouse.h"
 #include "Mouse_Config.h"
