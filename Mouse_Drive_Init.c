@@ -4,7 +4,7 @@
 *********************************************************************************************************/
 #define SYS_CLK   72000000
 #define ADC1_DR_Address   ((u32)0x40012400+0x4c)
-__IO uint16_t ADC_ConvertedValue[5];
+__IO uint16_t ADC_ConvertedValue[TUNE_ADC_CHANNELS];
 /*********************************************************************************************************
 ** Function name:       SysTick_Configuration
 ** Descriptions:        系统节拍定时器初始化。
@@ -14,7 +14,7 @@ __IO uint16_t ADC_ConvertedValue[5];
 *********************************************************************************************************/
 void SysTick_Configuration(void)
 { 
-    if (SysTick_Config(SYS_CLK/1000))     //1ms
+    if (SysTick_Config(SYS_CLK / TUNE_SYSTICK_HZ))     /* 1 ms */
     {        
         while (1);
     }
@@ -87,7 +87,7 @@ void AD_Mode_Config(void)
 	ADC_InitStruct.ADC_ContinuousConvMode=ENABLE;  //ENABLE 连续采样 DISABLE;单通次采样
 	ADC_InitStruct.ADC_ExternalTrigConv=ADC_ExternalTrigConv_None;//采样由软件驱动
 	ADC_InitStruct.ADC_DataAlign=ADC_DataAlign_Right;//数据右对齐
-	ADC_InitStruct.ADC_NbrOfChannel=5;  //进行规则转换的ADC数目
+	ADC_InitStruct.ADC_NbrOfChannel=TUNE_ADC_CHANNELS;  //进行规则转换的ADC数目
 	
 	ADC_Init(ADC1,&ADC_InitStruct);
 	RCC_ADCCLKConfig(RCC_PCLK2_Div8);//adc时钟频率=PLCK2/8=9M
@@ -114,7 +114,7 @@ void AD_DMA_Config(void)
 	DMA_InitStruct.DMA_PeripheralBaseAddr=ADC1_DR_Address;
 	DMA_InitStruct.DMA_MemoryBaseAddr=(u32)(&ADC_ConvertedValue);
 	DMA_InitStruct.DMA_DIR=DMA_DIR_PeripheralSRC;
-	DMA_InitStruct.DMA_BufferSize=5;
+	DMA_InitStruct.DMA_BufferSize=TUNE_ADC_CHANNELS;
 	
 	DMA_InitStruct.DMA_PeripheralInc=DMA_PeripheralInc_Disable;
 	DMA_InitStruct.DMA_MemoryInc=DMA_MemoryInc_Enable;
@@ -153,7 +153,7 @@ void Motor_Mode_Config(void)
 
 	TIM_DeInit(TIM1);
 	
-	TIM_TimeBaseInitStruct.TIM_Period = 2880-1; 
+	TIM_TimeBaseInitStruct.TIM_Period = TUNE_PWM_PERIOD - 1; 
 	TIM_TimeBaseInitStruct.TIM_Prescaler = 0; 
 	TIM_TimeBaseInitStruct.TIM_ClockDivision = 0; 
 	TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up; 
@@ -207,8 +207,8 @@ void TIM6_IRInit(void)
 	
     TIM_DeInit(TIM6);
     
-    TIM_TimeBaseStructure.TIM_Period = 99;		 								
-    TIM_TimeBaseStructure.TIM_Prescaler = 143;		//143		  
+    TIM_TimeBaseStructure.TIM_Period = TUNE_TIM6_PERIOD;		 								
+    TIM_TimeBaseStructure.TIM_Prescaler = TUNE_TIM6_PRESCALER;		  
     TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1; 		
     TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up; 
     TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
@@ -252,7 +252,7 @@ void ENCL_Init(void)
   
   TIM_EncoderInterfaceConfig(TIM2, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising); 
   TIM_ICStructInit(&TIM_ICInitStructure);
-  TIM_ICInitStructure.TIM_ICFilter = 6;
+  TIM_ICInitStructure.TIM_ICFilter = TUNE_ENCODER_FILTER_L;
 
   TIM_ICInit(TIM2, &TIM_ICInitStructure); 
    
@@ -297,7 +297,7 @@ void ENCR_Init(void)
   
   TIM_EncoderInterfaceConfig(TIM3, TIM_EncoderMode_TI12,TIM_ICPolarity_Rising, TIM_ICPolarity_Rising); 
   TIM_ICStructInit(&TIM_ICInitStruct);        
-  TIM_ICInitStruct.TIM_ICFilter = 5; 
+  TIM_ICInitStruct.TIM_ICFilter = TUNE_ENCODER_FILTER_R; 
   TIM_ICInit(TIM3, &TIM_ICInitStruct); 
    
   TIM_ClearFlag(TIM3,TIM_IT_Update);
@@ -321,36 +321,6 @@ void LED_Init(void)
  GPIO_Init(GPIOB, &GPIO_InitStructure);
  GPIO_SetBits(GPIOB,GPIO_Pin_12);
 }
-//void fan_init(u16 arr,u16 psc)//定时器4通道3
-//{
-//	RCC->APB1ENR|=1<<2; 	//TIM4时钟使能           
-//	RCC->APB2ENR|=1<<3;   //Enable IO PB
-//	RCC->APB2ENR|=1<<0;   //Enable AFIO Clock
-//// 	
-//// 	AFIO->MAPR&=0XFFFFF3FF; //??3yMAPRμ?[11:10]
-//// 	AFIO->MAPR|=1<<11;      //2?·???ó3??,TIM3_CH2->PB5
-	
-//	AFIO->MAPR &= 0XFFFFFCFF;		//清除MAPR的[9:8]
-//	AFIO->MAPR &= 0 << 9;      		//部分重映像,TIM4_CH3->PB8
-	
-//	TIM4->CCR3 = 0;  //通道3初始化占空比
-//	TIM4->ARR = arr;        //Load   
-//	TIM4->PSC = psc;     
-	
-//	GPIOB->CRH&=0XFFFFF0FF;     // Clear the State of PB8
-//	GPIOB->CRH|=0X00000E00;     // Set   the State of PB8
-	
-//	TIM4->CCMR2 |= 6<<4;   	// TIM4 CH3 PWM1 模式 
-//	TIM4->CCMR2 |= 1<<3; 	  //CH3预装载值使能   输出比较3预装载值使能
-	
-	
-//	TIM4->CCER  |= 1<<8;   	//OC3 输出使能
-	
-//	TIM4->CR1=0x0080;   	//ARPE使能
-//	TIM4->CR1|=0x01;    	//使能定时器4
-//}
-
-
  void fan_init(u16 arr,u16 psc)	 //TIM4	PB8
  {		 					 
  	//RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);//使能TIM4时钟
@@ -388,7 +358,7 @@ void MouseInit(void)
         AD_Init();
         TIM6_IRInit();
         LED_Init();
-        fan_init(3600,0);
+        fan_init(TUNE_FAN_PWM_PERIOD, 0);
 	//PIDInit();
 }
 
