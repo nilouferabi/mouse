@@ -12,8 +12,6 @@
 
 
 #include "stm32f10x.h"
-#include "Type.h"
-#include "Mouse_Config.h"
 
 void MouseInit(void);
 void fan_init(u16 arr, u16 psc);
