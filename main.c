@@ -31,8 +31,8 @@
 #include "Maze.h"
 #include "stm32f10x.h"
 #include "zlg7289.h"
-#include "BitBand.h"
 #include "Mouse_Drive.h"
+#include "Mouse_Nav.h"
 #include "stmflash.h"
 #include "stdio.h"
 /*********************************************************************************************************
@@ -1349,6 +1349,9 @@ int main(void)
 {
     uint8 ucTemp = 0;                                           /*  START 状态中坐标转换         */
     uint8 start  = 0;                                           /*  START 按键次数               */
+#if TUNE_8DIR_ENABLE
+    uint8 nav    = NAV_NO_PATH;                                 /*  8 向冲刺结果                 */
+#endif
 
     SystemInit();
     RCC_Init();
@@ -1460,11 +1463,25 @@ int main(void)
             GucMouseTask = SPURTL;
             break;
 
-        case SPURTL:                                            /*  一冲（普通冲刺）             */
+        case SPURTL:                                            /*  一冲（普通冲刺 / 8 向冲刺）  */
             StartGet();
             wallget();
             goalwall();
+
+#if TUNE_8DIR_ENABLE
+            nav = mouseSpurt_8_to_goal(GucXGoal0, GucXGoal1, GucYGoal0, GucYGoal1);
+            if (nav == NAV_NO_PATH) {
+                mouseSpurt_CC();                                /*  地图没有斜向通路，回退 4 向  */
+            } else if (nav != NAV_OK) {
+                mouseStop();                                    /*  运动超时/中止，停车待查       */
+                GucMouseTask = WAIT;
+                delay(TUNE_DELAY_SETTLE);
+                break;
+            }
+#else
             mouseSpurt_CC();
+#endif
+
             mouseTurnback();
             objectGoTo1(GucXStart, GucYStart);
             onestep3();

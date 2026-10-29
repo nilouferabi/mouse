@@ -42,6 +42,7 @@
 *********************************************************************************************************/
 #define __STOP              0                                           /*  电脑鼠停止                  */
 #define __GOAHEAD           1                                           /*  电脑鼠前进                  */
+#define __GOAHEAD_45        2                                           /*  斜向直行（8 向）            */
 #define __TURNLEFT          3                                           /*  电脑鼠向左转                */
 #define __TURNRIGHT         4                                           /*  电脑鼠向右转                */
 #define __TURNBACK          5                                           /*  电脑鼠向后转                */
@@ -114,6 +115,8 @@ void  voltageDetect1(void);
 void  sensorDebug(void);
 uint8 startCheck(void);
 void  mazeSearch(void);
+uint8 mouseTurnTo(uint8 targetDir);
+uint8 mouseGoOneBlock(uint8 dir);
 void  mouseStop(void);
 void  mouseGoahead_L(int8 cNBlock);
 void  mouseTurnleft(void);

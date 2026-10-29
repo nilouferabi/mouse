@@ -47,7 +47,8 @@ static float           GsTpusle_T;                        /* SysTick 内使用     
 static volatile uint8  GuiSpeedCtr = 0;                   /* 主循环写，SysTick 读        */
 static uint16          GuiTpusle_LR = 0;                  /* 搜索段接弯补偿             */
 static uint8           GucFrontNear = 0;                  /* 搜索段置位，转弯函数读      */
-static float           jiao = 0;                          /* 陀螺积分角（ISR 内）        */
+static volatile float  jiao = 0;                          /* 陀螺积分角（ISR/主循环共享）*/
+static volatile uint32 GucSysTickMs = 0;                  /* 1 ms 计时，用于动作超时      */
 static volatile float  leftdis = 0;
 static volatile float  rightdis = 0;
 static float           piancha_r;                         /* 转向偏置（主循环）          */
@@ -635,6 +636,8 @@ void SysTick_Handler(void)
     static uint8  k = 0;
     static uint16 t = 0, s = 0;
 
+    GucSysTickMs++;
+
     if (zijiaozheng0 == 1)
     {
         if (zijiaozheng_flag)
@@ -694,6 +697,26 @@ void SysTick_Handler(void)
             }
 
             __PIDContr();               /* 原代码在本状态会算两次 PID，勿合并 */
+
+            if (GuiSpeedCtr == __SPEEDUP)
+            {
+                k = (k + 1) % TUNE_SPEED_ACCEL_DIV;
+                if (k == TUNE_SPEED_ACCEL_DIV - 1)
+                    __SpeedUp();
+            }
+            else if (GuiSpeedCtr == __SPEEDDOWN)
+            {
+                k = (k + 1) % TUNE_SPEED_DECEL_DIV;
+                if (k == TUNE_SPEED_DECEL_DIV / 2)
+                    __SpeedDown();
+            }
+        }
+        else if (__GucMouseState == __GOAHEAD_45)
+        {
+            /* 斜向直行：不用侧墙找正，靠陀螺积分角保持航向 */
+            GsTpusle_T = TUNE_8DIR_GYRO_FF * jiao;
+            voltageDetect1();
+            voltageDetect();
 
             if (GuiSpeedCtr == __SPEEDUP)
             {
@@ -1733,6 +1756,171 @@ uint8 PulseCtrCheck(void)
         return true;
 
     return false;
+}
+
+
+/*======================================================================================================
+  8 向运动原语
+    - mouseTurnTo()      ：原地转到目标绝对方向（0..7）
+    - mouseGoOneBlock()  ：沿当前方向走一格（正交/斜向）
+  说明：这两级只负责“一格 + 一次转向”，路径由 Mouse_Nav.c 规划。
+======================================================================================================*/
+
+static void __resetPID(void)
+{
+    __GmSPID.sRef = 0;
+    __GmSPID.sPreError = 0;
+    __GmSPID.sPreDerror = 0;
+    __GmSPID.iPreU = 0;
+
+    __GmWPID.sRef = 0;
+    __GmWPID.sPreError = 0;
+    __GmWPID.sPreDerror = 0;
+    __GmWPID.iPreU = 0;
+}
+
+static void __stopMotors(void)
+{
+    __GmSPID.sRef = 0;
+    __GmWPID.sRef = 0;
+    GuiSpeedCtr = TUNE_SPEED_STOP;
+
+    __GmRight.cState = __MOTORSTOP;
+    __GmLeft.cState  = __MOTORSTOP;
+    __GmRight.sSpeed = 0;
+    __GmLeft.sSpeed  = 0;
+    __rightMotorContr();
+    __leftMotorContr();
+
+    __GmRight.uiPulse = 0;
+    __GmLeft.uiPulse  = 0;
+    __GmRight.uiPulseCtr = 0;
+    __GmLeft.uiPulseCtr  = 0;
+}
+
+/* steps45: 正数右转，负数左转，单位 45 度 */
+static uint8 __turnInPlace(int8 steps45)
+{
+    uint8  right;
+    float  target;
+    uint32 start;
+
+    if (steps45 == 0)
+        return 1;
+
+    right = (steps45 > 0) ? 1 : 0;
+    target = (float)steps45 * 45.0f;
+    target *= right ? TUNE_8DIR_TURN_TRIM_R : TUNE_8DIR_TURN_TRIM_L;
+
+    __resetPID();
+    __stopMotors();
+
+    __GmSPID.sRef = 0;
+    __GmWPID.sRef = right ? -TUNE_8DIR_TURN_SPIN : TUNE_8DIR_TURN_SPIN;
+    __GucMouseState = right ? __TURNRIGHT : __TURNLEFT;
+
+    __GmLeft.cState  = __MOTORRUN;
+    __GmRight.cState = __MOTORRUN;
+
+    jiao = 0;
+    start = GucSysTickMs;
+
+    while (1)
+    {
+        if (right)
+        {
+            if (jiao >= target)
+                break;
+        }
+        else
+        {
+            if (jiao <= target)
+                break;
+        }
+
+        if ((GucSysTickMs - start) > TUNE_8DIR_TURN_TIMEOUT_MS)
+        {
+            __stopMotors();
+            return 0;
+        }
+    }
+
+    __stopMotors();
+    GucMouseDir = (uint8)((GucMouseDir + 8 + steps45) % 8);
+    __delay(TUNE_8DIR_STOP_DELAY_LOOPS);
+
+    return 1;
+}
+
+uint8 mouseTurnTo(uint8 targetDir)
+{
+    int8 delta;
+
+    if (targetDir > 7)
+        return 0;
+
+    delta = (int8)((targetDir + 8 - GucMouseDir) % 8);
+    if (delta > 4)
+        delta = (int8)(delta - 8);
+
+    if (delta == 0)
+        return 1;
+
+    return __turnInPlace(delta);
+}
+
+uint8 mouseGoOneBlock(uint8 dir)
+{
+    uint32 distance;
+    uint32 start;
+    uint8  diagonal;
+
+    if (dir > 7)
+        return 0;
+
+    diagonal = (uint8)(dir & 0x01);
+    distance = diagonal ? TUNE_8DIR_PULSE_DIAG : TUNE_8DIR_PULSE_ORTHO;
+
+    __resetPID();
+    __stopMotors();
+
+    jiao = 0;
+    __GucMouseState = diagonal ? __GOAHEAD_45 : __GOAHEAD;
+    GuiSpeedCtr = __SPEEDUP;
+    __GiMaxSpeed = diagonal ? TUNE_8DIR_SPEED_DIAG : TUNE_8DIR_SPEED_ORTHO;
+
+    __GmRight.uiPulse = distance;
+    __GmLeft.uiPulse  = distance;
+    __GmRight.uiPulseCtr = 0;
+    __GmLeft.uiPulseCtr  = 0;
+    __GmRight.cState = __MOTORRUN;
+    __GmLeft.cState  = __MOTORRUN;
+
+    start = GucSysTickMs;
+
+    while ((__GmRight.uiPulseCtr < __GmRight.uiPulse) ||
+           (__GmLeft.uiPulseCtr  < __GmLeft.uiPulse))
+    {
+        if ((GucSysTickMs - start) > TUNE_8DIR_MOVE_TIMEOUT_MS)
+        {
+            __stopMotors();
+            return 0;
+        }
+
+        /* 斜向安全：两个前向近距都触发，说明前方/角落有障碍，立即停车 */
+        if (TUNE_8DIR_FRONT_SAFETY && diagonal &&
+            (ucIRCheck[0] > GusDistance_FL_Near) &&
+            (ucIRCheck[1] > GusDistance_FR_Near))
+        {
+            __stopMotors();
+            return 0;
+        }
+    }
+
+    __stopMotors();
+    __delay(TUNE_8DIR_STOP_DELAY_LOOPS);
+
+    return 1;
 }
 
 /*********************************************************************************************************
