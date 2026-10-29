@@ -60,6 +60,7 @@ Scr/
 ├── stmflash.c / .h         内部 Flash（地图 / 起点 / 红外阈值）
 ├── stm32f10x_it.c / .h     异常向量
 ├── Type.h / BitBand.h / Micromouse.h
+├── test/test_nav.c         主机侧 8 邻域规划器测试（不参与固件）
 └── README.md
 ```
 
@@ -268,6 +269,7 @@ ucIRCheck[i] = ADC - Sunlight
 ```bash
 make                 # 默认 -Os
 make OPT="-O0 -g3"   # 调试版
+make test-nav        # 主机侧 8 邻域规划器测试（gcc）
 make size
 make flash
 ```
@@ -279,7 +281,7 @@ make flash
 | `-Os` | 28 040 B（21.39%） | 9 208 B（44.96%） | 仅 `HardFault` 等 5 个异常处理 |
 | `-O0` | 45 444 B（34.67%） | 9 232 B（45.08%） | 仅 `LoopForever` |
 
-主机侧 8 邻域规划器测试（不接硬件）：
+主机侧 8 邻域规划器测试（`make test-nav`，不接硬件）：
 
 - 空地 16×16：15 步斜向到 (15,15)，距离 210；
 - 缺北墙时 (0,0)→(1,1) 斜向被禁止，改走正交；
