@@ -1,7 +1,7 @@
-#include "stmflash.h"
+ï»¿#include "stmflash.h"
 
 
-volatile FLASH_Status FLASHStatus = FLASH_COMPLETE;   //Flash²Ù×÷×´Ì¬±äÁ¿
+volatile FLASH_Status FLASHStatus = FLASH_COMPLETE;   //Flashæ“ä½œçŠ¶æ€å˜é‡
 
 u16 STMFLASH_ReadHalfWord(u32 addr)
 {
@@ -32,17 +32,17 @@ u16 STMFLASH_BUF[STM_SECTOR_SIZE/2];
 
 void STMFLASH_Write(u32 WriteAddr,u16 *pBuffer,u16 NumToWrite)
 {
-	u32 secpos;     //ÉÈÇøµØÖ·
-	u16 secoff;     //ÉÈÇøÄÚÆ«ÒÆµØÖ·£¨16Î»×Ö¼ÆËã£©
-	u16 secremain;   //ÉÈÇøÄÚÊ£ÓàµØÖ·£¨16Î»×Ö¼ÆËã£©
+	u32 secpos;     //æ‰‡åŒºåœ°å€
+	u16 secoff;     //æ‰‡åŒºå†…åç§»åœ°å€ï¼ˆ16ä½å­—è®¡ç®—ï¼‰
+	u16 secremain;   //æ‰‡åŒºå†…å‰©ä½™åœ°å€ï¼ˆ16ä½å­—è®¡ç®—ï¼‰
 	
 	u16 i;
-	u32 offaddr;   //È¥µô0x08000000ºóµÄµØÖ·
+	u32 offaddr;   //å»æ‰0x08000000åçš„åœ°å€
 	
 	if(WriteAddr<STM32_FLASH_BASE||WriteAddr>=STM32_FLASH_BASE+1024*STM32_FLASH_SIZE)
-		return ;  //·Ç·¨µØÖ·
+		return ;  //éæ³•åœ°å€
 	
-	FLASH_Unlock();     //½âËø
+	FLASH_Unlock();     //è§£é”
 	
 	offaddr=WriteAddr-STM32_FLASH_BASE;
 	secpos=offaddr/STM_SECTOR_SIZE;
@@ -64,27 +64,27 @@ void STMFLASH_Write(u32 WriteAddr,u16 *pBuffer,u16 NumToWrite)
 		
 		if(i<secremain)
 		{
-				FLASH_ErasePage(secpos*STM_SECTOR_SIZE+STM32_FLASH_BASE);//²Á³ıÕâ¸öÉÈÇø
-				for(i=0;i<secremain;i++)//¸´ÖÆ
+				FLASH_ErasePage(secpos*STM_SECTOR_SIZE+STM32_FLASH_BASE);//æ“¦é™¤è¿™ä¸ªæ‰‡åŒº
+				for(i=0;i<secremain;i++)//å¤åˆ¶
 				{
 					STMFLASH_BUF[i+secoff]=pBuffer[i];	  
 				}
 				 STMFLASH_Write_NoCheck(secpos*STM_SECTOR_SIZE+STM32_FLASH_BASE,STMFLASH_BUF,STM_SECTOR_SIZE/2);
 		}
 		else 
-				STMFLASH_Write_NoCheck(WriteAddr,pBuffer,secremain);//Ğ´ÒÑ¾­²Á³ıÁËµÄ,Ö±½ÓĞ´ÈëÉÈÇøÊ£ÓàÇø¼ä 	
+				STMFLASH_Write_NoCheck(WriteAddr,pBuffer,secremain);//å†™å·²ç»æ“¦é™¤äº†çš„,ç›´æ¥å†™å…¥æ‰‡åŒºå‰©ä½™åŒºé—´ 	
 			
 		if(NumToWrite==secremain)
-				break;//Ğ´Èë½áÊøÁË
+				break;//å†™å…¥ç»“æŸäº†
 		else
 		{
-				secpos++;				//ÉÈÇøµØÖ·Ôö1
-				secoff=0;				//Æ«ÒÆÎ»ÖÃÎª0 	 
-				pBuffer+=secremain;  	//Ö¸ÕëÆ«ÒÆ
-				WriteAddr+=secremain;	//Ğ´µØÖ·Æ«ÒÆ	   
-				NumToWrite-=secremain;	//×Ö½Ú(16Î»)Êıµİ¼õ
-				if(NumToWrite>(STM_SECTOR_SIZE/2))secremain=STM_SECTOR_SIZE/2;//ÏÂÒ»¸öÉÈÇø»¹ÊÇĞ´²»Íê
-				else secremain=NumToWrite;//ÏÂÒ»¸öÉÈÇø¿ÉÒÔĞ´ÍêÁË
+				secpos++;				//æ‰‡åŒºåœ°å€å¢1
+				secoff=0;				//åç§»ä½ç½®ä¸º0 	 
+				pBuffer+=secremain;  	//æŒ‡é’ˆåç§»
+				WriteAddr+=secremain;	//å†™åœ°å€åç§»	   
+				NumToWrite-=secremain;	//å­—èŠ‚(16ä½)æ•°é€’å‡
+				if(NumToWrite>(STM_SECTOR_SIZE/2))secremain=STM_SECTOR_SIZE/2;//ä¸‹ä¸€ä¸ªæ‰‡åŒºè¿˜æ˜¯å†™ä¸å®Œ
+				else secremain=NumToWrite;//ä¸‹ä¸€ä¸ªæ‰‡åŒºå¯ä»¥å†™å®Œäº†
 		}				
 	}	
 	FLASH_Lock();
@@ -129,9 +129,9 @@ void STMFLASH_WriteOneWord(u32 WriteAddr,u32 WriteData)
 
 /****************************************************************
 *Name:		ReadFlashNBtye
-*Function:	´ÓÄÚ²¿Flash¶ÁÈ¡N×Ö½ÚÊı¾İ
-*Input:		ReadAddress£ºÊı¾İµØÖ·£¨Æ«ÒÆµØÖ·£©ReadBuf£ºÊı¾İÖ¸Õë	ReadNum£º¶ÁÈ¡×Ö½ÚÊı
-*Output:	¶ÁÈ¡µÄ×Ö½ÚÊı  
+*Function:	ä»å†…éƒ¨Flashè¯»å–Nå­—èŠ‚æ•°æ®
+*Input:		ReadAddressï¼šæ•°æ®åœ°å€ï¼ˆåç§»åœ°å€ï¼‰ReadBufï¼šæ•°æ®æŒ‡é’ˆ	ReadNumï¼šè¯»å–å­—èŠ‚æ•°
+*Output:	è¯»å–çš„å­—èŠ‚æ•°  
 *Author:    ValerianFan
 *Date:		2014/04/09
 *E-Mail:	fanwenjingnihao@163.com

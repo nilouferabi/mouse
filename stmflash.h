@@ -1,4 +1,4 @@
-#ifndef __STMFLASH_H
+ï»¿#ifndef __STMFLASH_H
 #define __STMFLASH_H
 
 
@@ -10,8 +10,8 @@
 
 #define STM32_FLASH_WREN 1
 
-#define STM32_FLASH_SIZE  128    //ËùÑ¡µÄSTM32µÄFLASHµÄÈİÁ¿´óĞ¡Îª128K
-#define STM32_FLASH_BASE  0x08000000    //stm32ÆğÊ¼µØÖ·
+#define STM32_FLASH_SIZE  128    //æ‰€é€‰çš„STM32çš„FLASHçš„å®¹é‡å¤§å°ä¸º128K
+#define STM32_FLASH_BASE  0x08000000    //stm32èµ·å§‹åœ°å€
 
 
 #define  STARTADDR  0x08010000 

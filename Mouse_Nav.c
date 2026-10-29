@@ -1,12 +1,12 @@
-/*********************************************************************************************************
+ï»¿/*********************************************************************************************************
 ** File Name:           Mouse_Nav.c
-** Description:         8 ÁÚÓòÂ·¾¶¹æ»® + ³å´ÌÖ´ĞĞ
+** Description:         8 é‚»åŸŸè·¯å¾„è§„åˆ’ + å†²åˆºæ‰§è¡Œ
 **
-**   ×ø±ê/·½ÏòÔ¼¶¨£¨ÓëÔ­¹¤³ÌÒ»ÖÂ£©£º
-**     ·½Ïò 0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW
-**     ÃÔ¹¬Ç½Î»£ºbit0=N, bit1=E, bit2=S, bit3=W£¬1 ±íÊ¾ÓĞÂ·
+**   åæ ‡/æ–¹å‘çº¦å®šï¼ˆä¸åŸå·¥ç¨‹ä¸€è‡´ï¼‰ï¼š
+**     æ–¹å‘ 0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW
+**     è¿·å®«å¢™ä½ï¼šbit0=N, bit1=E, bit2=S, bit3=Wï¼Œ1 è¡¨ç¤ºæœ‰è·¯
 **
-**   Ğ±Ïò¹æÔò£ºÖ»ÓĞ 2x2 ·½¿éÄÚ²¿ÍêÈ«Á¬Í¨Ê±²ÅÔÊĞí×ß¶Ô½ÇÏß£¬±ÜÃâÇĞ½Ç×²Ç½¡£
+**   æ–œå‘è§„åˆ™ï¼šåªæœ‰ 2x2 æ–¹å—å†…éƒ¨å®Œå…¨è¿é€šæ—¶æ‰å…è®¸èµ°å¯¹è§’çº¿ï¼Œé¿å…åˆ‡è§’æ’å¢™ã€‚
 *********************************************************************************************************/
 
 #include "Mouse_Nav.h"
@@ -21,7 +21,7 @@ static uint8  GucNavVisited[MAZETYPE][MAZETYPE];
 static const int8 NavDx[8] = { 0,  1,  1,  1,  0, -1, -1, -1 };
 static const int8 NavDy[8] = { 1,  1,  0, -1, -1, -1,  0,  1 };
 
-/* Á½µãÖ®¼äµÄÇ½Î»²½³¤£ºÕı½» 10£¬¶Ô½Ç 14£¨¡Ö¡Ì2 ±¶£© */
+/* ä¸¤ç‚¹ä¹‹é—´çš„å¢™ä½æ­¥é•¿ï¼šæ­£äº¤ 10ï¼Œå¯¹è§’ 14ï¼ˆâ‰ˆâˆš2 å€ï¼‰ */
 #define NAV_COST_ORTHO 10
 #define NAV_COST_DIAG  14
 
@@ -58,7 +58,7 @@ uint8 Nav_CanMove(uint8 x, uint8 y, int8 dx, int8 dy)
     if ((nx < 0) || (nx >= MAZETYPE) || (ny < 0) || (ny >= MAZETYPE))
         return 0;
 
-    /* Õı½»Ò»²½£ºÁ½±ß¶¼µÃÈÏÎªÓĞÂ·£¨Ç½Í¼Ò»ÖÂÊ±µÈ¼Û£© */
+    /* æ­£äº¤ä¸€æ­¥ï¼šä¸¤è¾¹éƒ½å¾—è®¤ä¸ºæœ‰è·¯ï¼ˆå¢™å›¾ä¸€è‡´æ—¶ç­‰ä»·ï¼‰ */
     if ((dx == 0) && (dy == 1))
         return ((GucMapBlock[x][y] & 0x01) && (GucMapBlock[nx][ny] & 0x04)) ? 1 : 0;
     if ((dx == 1) && (dy == 0))
@@ -68,7 +68,7 @@ uint8 Nav_CanMove(uint8 x, uint8 y, int8 dx, int8 dy)
     if ((dx == -1) && (dy == 0))
         return ((GucMapBlock[x][y] & 0x08) && (GucMapBlock[nx][ny] & 0x02)) ? 1 : 0;
 
-    /* ¶Ô½ÇÒ»²½£º2x2 ·½¿éËÄÌõÄÚ±ß¶¼±ØĞëÍ¨£¬¾ø²»ÇĞ½Ç */
+    /* å¯¹è§’ä¸€æ­¥ï¼š2x2 æ–¹å—å››æ¡å†…è¾¹éƒ½å¿…é¡»é€šï¼Œç»ä¸åˆ‡è§’ */
     if ((dx != 0) && (dy != 0))
     {
         return (Nav_CanMove(x, y, dx, 0) &&
@@ -101,7 +101,7 @@ uint8 Nav_BuildDistance(uint8 gx, uint8 gy)
 
     GucNavDist[gx][gy] = 0;
 
-    /* ½ÚµãºÜÉÙ£¨256£©£¬ÓÃ O(N^2) µÄ Dijkstra ×ã¹» */
+    /* èŠ‚ç‚¹å¾ˆå°‘ï¼ˆ256ï¼‰ï¼Œç”¨ O(N^2) çš„ Dijkstra è¶³å¤Ÿ */
     while (1)
     {
         best = NAV_INF;
@@ -171,7 +171,7 @@ uint8 Nav_NextStep(uint8 x, uint8 y, uint8 curDir,
             continue;
 
         cost = Nav_MoveCost(dir);
-        /* Ö»×ß¡°×î¶ÌÂ·¡±ÉÏµÄ±ß */
+        /* åªèµ°â€œæœ€çŸ­è·¯â€ä¸Šçš„è¾¹ */
         if ((uint16)(GucNavDist[nx][ny] + cost) != here)
             continue;
 
@@ -189,7 +189,7 @@ uint8 Nav_NextStep(uint8 x, uint8 y, uint8 curDir,
     return found;
 }
 
-/* ÔÚµ±Ç°ÒÑ¹¹½¨µÄ¾àÀëÍ¼ÉÏ£¬´Ó GmcMouse ×ßµ½ (gx,gy) */
+/* åœ¨å½“å‰å·²æ„å»ºçš„è·ç¦»å›¾ä¸Šï¼Œä» GmcMouse èµ°åˆ° (gx,gy) */
 static uint8 Nav_RunPath(uint8 gx, uint8 gy)
 {
     int16 x, y;
@@ -226,7 +226,7 @@ static uint8 Nav_RunPath(uint8 gx, uint8 gy)
     if ((x != gx) || (y != gy))
         return NAV_ABORT;
 
-    /* »Øµ½ 4 Ïò´úÂëÇ°£¬°Ñ³¯Ïò¶ÔÆëµ½×î½üµÄÕı½»·½Ïò */
+    /* å›åˆ° 4 å‘ä»£ç å‰ï¼ŒæŠŠæœå‘å¯¹é½åˆ°æœ€è¿‘çš„æ­£äº¤æ–¹å‘ */
     if (GucMouseDir & 0x01)
     {
         if (!mouseTurnTo((uint8)(GucMouseDir & 0xFE)))
@@ -284,7 +284,7 @@ uint8 mouseSpurt_8_to_goal(uint8 gx0, uint8 gx1, uint8 gy0, uint8 gy1)
     if (best == NAV_INF)
         return NAV_NO_PATH;
 
-    /* ÖØĞÂ°´Ñ¡ÖĞµÄÖÕµã½¨Í¼£¬ÔÙÖ´ĞĞ */
+    /* é‡æ–°æŒ‰é€‰ä¸­çš„ç»ˆç‚¹å»ºå›¾ï¼Œå†æ‰§è¡Œ */
     if (!Nav_BuildDistance(bestX, bestY))
         return NAV_NO_PATH;
 

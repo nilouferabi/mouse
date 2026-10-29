@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Host-side test for the 8-neighbour planner.  Builds Mouse_Nav.c with
  * minimal stubs so the path/corner rules can be checked without hardware.
  */

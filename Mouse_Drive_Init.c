@@ -1,17 +1,17 @@
-#include "Mouse_Drive_Init.h"
+ï»¿#include "Mouse_Drive_Init.h"
 #include "Mouse_Config.h"
 /*********************************************************************************************************
-  ¶¨ÒåÈ«¾Ö±äÁ¿
+  å®šä¹‰å…¨å±€å˜é‡
 *********************************************************************************************************/
 #define SYS_CLK   72000000
 #define ADC1_DR_Address   ((u32)0x40012400+0x4c)
 __IO uint16_t ADC_ConvertedValue[TUNE_ADC_CHANNELS];
 /*********************************************************************************************************
 ** Function name:       SysTick_Configuration
-** Descriptions:        ÏµÍ³½ÚÅÄ¶¨Ê±Æ÷³õÊ¼»¯¡£
-** input parameters:    ÎÞ
-** output parameters:   ÎÞ
-** Returned value:      ÎÞ
+** Descriptions:        ç³»ç»ŸèŠ‚æ‹å®šæ—¶å™¨åˆå§‹åŒ–ã€‚
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void SysTick_Configuration(void)
 { 
@@ -24,10 +24,10 @@ void SysTick_Configuration(void)
 
 /*********************************************************************************************************
 ** Function name:       __keyInit
-** Descriptions:        ¶Ô KEYºÍSTART¼ü½øÐÐ³õÊ¼»¯
-** input parameters:    ÎÞ
-** output parameters:   ÎÞ
-** Returned value:      ÎÞ
+** Descriptions:        å¯¹ KEYå’ŒSTARTé”®è¿›è¡Œåˆå§‹åŒ–
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void __keyInit (void)
 {
@@ -83,22 +83,22 @@ void AD_Mode_Config(void)
 	ADC_InitTypeDef ADC_InitStruct;
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1,ENABLE);
 	
-	ADC_InitStruct.ADC_Mode=ADC_Mode_Independent;//ADC1ºÍADC2¶ÀÁ¢¹¤×÷Ä£Ê½
-	ADC_InitStruct.ADC_ScanConvMode=ENABLE; //ENABLE;¶àÍ¨µÀÄ£Ê½£¬DISABLE;µ¥Í¨µÀÄ£Ê½
-	ADC_InitStruct.ADC_ContinuousConvMode=ENABLE;  //ENABLE Á¬Ðø²ÉÑù DISABLE;µ¥Í¨´Î²ÉÑù
-	ADC_InitStruct.ADC_ExternalTrigConv=ADC_ExternalTrigConv_None;//²ÉÑùÓÉÈí¼þÇý¶¯
-	ADC_InitStruct.ADC_DataAlign=ADC_DataAlign_Right;//Êý¾ÝÓÒ¶ÔÆë
-	ADC_InitStruct.ADC_NbrOfChannel=TUNE_ADC_CHANNELS;  //½øÐÐ¹æÔò×ª»»µÄADCÊýÄ¿
+	ADC_InitStruct.ADC_Mode=ADC_Mode_Independent;//ADC1å’ŒADC2ç‹¬ç«‹å·¥ä½œæ¨¡å¼
+	ADC_InitStruct.ADC_ScanConvMode=ENABLE; //ENABLE;å¤šé€šé“æ¨¡å¼ï¼ŒDISABLE;å•é€šé“æ¨¡å¼
+	ADC_InitStruct.ADC_ContinuousConvMode=ENABLE;  //ENABLE è¿žç»­é‡‡æ · DISABLE;å•é€šæ¬¡é‡‡æ ·
+	ADC_InitStruct.ADC_ExternalTrigConv=ADC_ExternalTrigConv_None;//é‡‡æ ·ç”±è½¯ä»¶é©±åŠ¨
+	ADC_InitStruct.ADC_DataAlign=ADC_DataAlign_Right;//æ•°æ®å³å¯¹é½
+	ADC_InitStruct.ADC_NbrOfChannel=TUNE_ADC_CHANNELS;  //è¿›è¡Œè§„åˆ™è½¬æ¢çš„ADCæ•°ç›®
 	
 	ADC_Init(ADC1,&ADC_InitStruct);
-	RCC_ADCCLKConfig(RCC_PCLK2_Div8);//adcÊ±ÖÓÆµÂÊ=PLCK2/8=9M
-	ADC_RegularChannelConfig(ADC1,ADC_Channel_2,1,ADC_SampleTime_71Cycles5);//9M/239.5=37.58k 26.61us½øÐÐÒ»´Î×ª»»
+	RCC_ADCCLKConfig(RCC_PCLK2_Div8);//adcæ—¶é’Ÿé¢‘çŽ‡=PLCK2/8=9M
+	ADC_RegularChannelConfig(ADC1,ADC_Channel_2,1,ADC_SampleTime_71Cycles5);//9M/239.5=37.58k 26.61usè¿›è¡Œä¸€æ¬¡è½¬æ¢
 	ADC_RegularChannelConfig(ADC1,ADC_Channel_10,2,ADC_SampleTime_71Cycles5);
 	ADC_RegularChannelConfig(ADC1,ADC_Channel_15,3,ADC_SampleTime_71Cycles5);        
 	ADC_RegularChannelConfig(ADC1,ADC_Channel_11,4,ADC_SampleTime_71Cycles5);
         ADC_RegularChannelConfig(ADC1,ADC_Channel_4,5,ADC_SampleTime_71Cycles5);
-	ADC_DMACmd(ADC1,ENABLE);//ADC1 DMAÍ¨µÀÊ¹ÄÜ
-	ADC_Cmd(ADC1,ENABLE);   //ADC1Ê¹ÄÜ
+	ADC_DMACmd(ADC1,ENABLE);//ADC1 DMAé€šé“ä½¿èƒ½
+	ADC_Cmd(ADC1,ENABLE);   //ADC1ä½¿èƒ½
 	ADC_ResetCalibration(ADC1);
 	while(ADC_GetResetCalibrationStatus(ADC1));
 	ADC_StartCalibration(ADC1);
@@ -324,29 +324,29 @@ void LED_Init(void)
 }
  void fan_init(u16 arr,u16 psc)	 //TIM4	PB8
  {		 					 
- 	//RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);//Ê¹ÄÜTIM4Ê±ÖÓ
-        RCC->APB1ENR|=1<<2; 	//TIM4Ê±ÖÓÊ¹ÄÜ    
+ 	//RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);//ä½¿èƒ½TIM4æ—¶é’Ÿ
+        RCC->APB1ENR|=1<<2; 	//TIM4æ—¶é’Ÿä½¿èƒ½    
  	RCC->APB2ENR|=1<<3;    	//Enable IO PB
        	RCC->APB2ENR|=1<<0;   //Enable AFIO Clock  
      
  	GPIOB->CRH&=0XFFFFFFF0;	//Clear the State of PB8
  	GPIOB->CRH|=0X0000000B;	//Set   the State of PB8  	 
 
- 	AFIO->MAPR&=0XFFFFEFFF; //Çå³ýMAPRµÄ12Î»£¬tim4   Êý¾ÝÊÖ²á122Ò³  Èç¹ûÐÞ¸ÄIO¿ÚÕâÀïÒ²ÐèÒª±ä
- //	AFIO->MAPR|=1<<11;      //²¿·ÖÖØÓ°Ó³Ïñ,TIM3_CH2->PB5
+ 	AFIO->MAPR&=0XFFFFEFFF; //æ¸…é™¤MAPRçš„12ä½ï¼Œtim4   æ•°æ®æ‰‹å†Œ122é¡µ  å¦‚æžœä¿®æ”¹IOå£è¿™é‡Œä¹Ÿéœ€è¦å˜
+ //	AFIO->MAPR|=1<<11;      //éƒ¨åˆ†é‡å½±æ˜ åƒ,TIM3_CH2->PB5
 
-        TIM4->CCR3 = 0;  //Í¨µÀ3³õÊ¼»¯Õ¼¿Õ±È
- 	TIM4->ARR=arr;			//Éè¶¨¼ÆÊýÆ÷µÄ×Ô¶¯ÖØ×°ÔØÖµ 
- 	TIM4->PSC=psc;			//Ô¤·ÖÆµÆ÷²»·ÖÆµ
+        TIM4->CCR3 = 0;  //é€šé“3åˆå§‹åŒ–å ç©ºæ¯”
+ 	TIM4->ARR=arr;			//è®¾å®šè®¡æ•°å™¨çš„è‡ªåŠ¨é‡è£…è½½å€¼ 
+ 	TIM4->PSC=psc;			//é¢„åˆ†é¢‘å™¨ä¸åˆ†é¢‘
  	
- 	TIM4->CCMR2|=6<<4;  	//CH3PWM2 Ä£Ê½
- 	TIM4->CCMR2|=1<<3; 	  //CH3×°ÔØÊ¹ÄÜ	 
- // 	TIM4->CCMR1|=7<<12;  	//CH2 PWMÄ£Ê½	 
+ 	TIM4->CCMR2|=6<<4;  	//CH3PWM2 æ¨¡å¼
+ 	TIM4->CCMR2|=1<<3; 	  //CH3è£…è½½ä½¿èƒ½	 
+ // 	TIM4->CCMR1|=7<<12;  	//CH2 PWMæ¨¡å¼	 
  // 	TIM4->CCMR1|=1<<11; 	//CH2	 
- 	TIM4->CCER  |= 1<<8;   	//OC3 Êä³öÊ¹ÄÜ
- // 	TIM4->CCER|=1<<4;   	//OC2 Êä³öÊ¹ÄÜ	   
- 	TIM4->CR1=0x0080;   	//ARPEÊ¹ÄÜ 
- 	TIM4->CR1|=0x01;    	//Ê¹ÄÜ¶¨Ê±Æ÷4											  
+ 	TIM4->CCER  |= 1<<8;   	//OC3 è¾“å‡ºä½¿èƒ½
+ // 	TIM4->CCER|=1<<4;   	//OC2 è¾“å‡ºä½¿èƒ½	   
+ 	TIM4->CR1=0x0080;   	//ARPEä½¿èƒ½ 
+ 	TIM4->CR1|=0x01;    	//ä½¿èƒ½å®šæ—¶å™¨4											  
  }  
 void MouseInit(void)
 {

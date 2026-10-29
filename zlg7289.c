@@ -1,12 +1,12 @@
-#include "zlg7289.h"
+ï»¿#include "zlg7289.h"
 #include "Type.h"
 
 /*********************************************************************************************************
 ** Function name:       ZLG7289_Delay
-** Descriptions:        ÑÓÊ±N¸öÎ¢Ãë
-** input parameters:    x: ÑÓÊ±Ê±¼ä
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        å»¶æ—¶Nä¸ªå¾®ç§’
+** input parameters:    x: å»¶æ—¶æ—¶é—´
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void ZLG7289_Delay(uint16 x)
 {	
@@ -16,42 +16,42 @@ void ZLG7289_Delay(uint16 x)
 
 /*********************************************************************************************************
 ** Function name:       ZLG7289_DIO_OUT
-** Descriptions:        ½«ZLG728_DI0ÉèÖÃ³ÉÊä³öÄ£Ê½¡£
-** input parameters:    ÎŞ
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        å°†ZLG728_DI0è®¾ç½®æˆè¾“å‡ºæ¨¡å¼ã€‚
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void ZLG7289_DIO_OUT(void)
 {
 	//DIO=1;
     GPIOB->CRL&=0XFF0FFFFF; 
-    GPIOB->CRL|=0X00300000;    //PD12ÍÆÍìÊä³ö 
-   // GPIOD->ODR|=1<<12;          //PD12Êä³ö¸ß	
+    GPIOB->CRL|=0X00300000;    //PD12æ¨æŒ½è¾“å‡º 
+   // GPIOD->ODR|=1<<12;          //PD12è¾“å‡ºé«˜	
 }
 /*********************************************************************************************************
 ** Function name:       ZLG7289_DIO_IN
-** Descriptions:        ½«ZLG728_DI0ÉèÖÃ³ÉÊäÈëÄ£Ê½¡£
-** input parameters:    ÎŞ
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        å°†ZLG728_DI0è®¾ç½®æˆè¾“å…¥æ¨¡å¼ã€‚
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void ZLG7289_DIO_IN(void)
 {
     GPIOB->CRL&=0XFF0FFFFF;
-    GPIOB->CRL|=0X00400000;    //PD12¸¡¿ÕÊäÈë	
+    GPIOB->CRL|=0X00400000;    //PD12æµ®ç©ºè¾“å…¥	
 }
 
 /*********************************************************************************************************
 ** Function name:       __zlg7289SPIWrite
-** Descriptions:        ÏòSPI ×ÜÏßĞ´Èë1 ¸ö×Ö½ÚµÄÊı¾İ¡£
-** input parameters:    cDat£ºÒªĞ´ÈëµÄÊı¾İ
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        å‘SPI æ€»çº¿å†™å…¥1 ä¸ªå­—èŠ‚çš„æ•°æ®ã€‚
+** input parameters:    cDatï¼šè¦å†™å…¥çš„æ•°æ®
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void __zlg7289SPIWrite (char cDat)
 {
       char CT=8;
-      ZLG7289_DIO_OUT();	 //DIOÉèÖÃ³ÉÊä³öÄ£Ê½
+      ZLG7289_DIO_OUT();	 //DIOè®¾ç½®æˆè¾“å‡ºæ¨¡å¼
       do{
            if((cDat & 0x80) == 0x80)
             {
@@ -70,10 +70,10 @@ void __zlg7289SPIWrite (char cDat)
 }
 /*********************************************************************************************************
 ** Function name:       __zlg7289SPIRead
-** Descriptions:        ´ÓSPI ×ÜÏß¶ÁÈ¡1 ¸ö×Ö½ÚµÄÊı¾İ¡£
-** input parameters:    ÎŞ
-** output parameters:   ÎŞ
-** Returned value:      ¶ÁÈ¡µ½µÄÊı¾İ
+** Descriptions:        ä»SPI æ€»çº¿è¯»å–1 ä¸ªå­—èŠ‚çš„æ•°æ®ã€‚
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      è¯»å–åˆ°çš„æ•°æ®
 *********************************************************************************************************/
  
 
@@ -98,10 +98,10 @@ char __zlg7289SPIRead (void)
 
 /*********************************************************************************************************
 ** Function name:       zlg7289Cmd
-** Descriptions:        Ö´ĞĞZLG7289 ´¿Ö¸Áî¡£
-** input parameters:    cCmd£ºÃüÁî×Ö
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        æ‰§è¡ŒZLG7289 çº¯æŒ‡ä»¤ã€‚
+** input parameters:    cCmdï¼šå‘½ä»¤å­—
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void zlg7289Cmd (char  cCmd)
 {
@@ -113,11 +113,11 @@ void zlg7289Cmd (char  cCmd)
 } 
 /*********************************************************************************************************
 ** Function name:       zlg7289CmdDat
-** Descriptions:        Ö´ĞĞZLG7289 ´øÊı¾İÖ¸Áî¡£
-** input parameters:    cCmd£ºÃüÁî×Ö
-**                      cDat£ºÊı¾İ
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        æ‰§è¡ŒZLG7289 å¸¦æ•°æ®æŒ‡ä»¤ã€‚
+** input parameters:    cCmdï¼šå‘½ä»¤å­—
+**                      cDatï¼šæ•°æ®
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void zlg7289CmdDat (uint8  cCmd, char  cDat)
 {
@@ -131,16 +131,16 @@ void zlg7289CmdDat (uint8  cCmd, char  cDat)
 }
 /*********************************************************************************************************
 ** Function name:       zlg7289Download
-** Descriptions:        ÏÂÔØÊı¾İ¡£
-** input parameters:    ucMod=0£º ÏÂÔØÊı¾İÇÒ°´·½Ê½0 ÒëÂë
-**                      ucMod=1£º ÏÂÔØÊı¾İÇÒ°´·½Ê½1 ÒëÂë
-**                      ucMod=2£º ÏÂÔØÊı¾İµ«²»ÒëÂë
-**                      cX£º      ÊıÂë¹Ü±àºÅ£¨ºá×ø±ê£©£¬È¡Öµ0¡«7
-**                      cDp=0£º   Ğ¡Êıµã²»ÁÁ
-**                      cDp=1£º   Ğ¡ÊıµãÁÁ
-**                      cDat£º    ÒªÏÔÊ¾µÄÊı¾İ
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        ä¸‹è½½æ•°æ®ã€‚
+** input parameters:    ucMod=0ï¼š ä¸‹è½½æ•°æ®ä¸”æŒ‰æ–¹å¼0 è¯‘ç 
+**                      ucMod=1ï¼š ä¸‹è½½æ•°æ®ä¸”æŒ‰æ–¹å¼1 è¯‘ç 
+**                      ucMod=2ï¼š ä¸‹è½½æ•°æ®ä½†ä¸è¯‘ç 
+**                      cXï¼š      æ•°ç ç®¡ç¼–å·ï¼ˆæ¨ªåæ ‡ï¼‰ï¼Œå–å€¼0ï½7
+**                      cDp=0ï¼š   å°æ•°ç‚¹ä¸äº®
+**                      cDp=1ï¼š   å°æ•°ç‚¹äº®
+**                      cDatï¼š    è¦æ˜¾ç¤ºçš„æ•°æ®
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void zlg7289Download (u8  ucMod, char  cX, char  cDp, char  cDat)
 {
@@ -164,10 +164,10 @@ void zlg7289Download (u8  ucMod, char  cX, char  cDp, char  cDat)
 }
 /*********************************************************************************************************
 ** Function name:       zlg7289Key
-** Descriptions:        Ö´ĞĞZLG7289 ¼üÅÌÃüÁî¡£
-** input parameters:    ÎŞ
-** output parameters:   ÎŞ
-** Returned value:      ·µ»Ø¶Áµ½µÄ°´¼üÖµ£º0¡«63¡£Èç¹û·µ»Ø0xFF Ôò±íÊ¾Ã»ÓĞ¼ü°´ÏÂ
+** Descriptions:        æ‰§è¡ŒZLG7289 é”®ç›˜å‘½ä»¤ã€‚
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      è¿”å›è¯»åˆ°çš„æŒ‰é”®å€¼ï¼š0ï½63ã€‚å¦‚æœè¿”å›0xFF åˆ™è¡¨ç¤ºæ²¡æœ‰é”®æŒ‰ä¸‹
 *********************************************************************************************************/
 char zlg7289Key (void)
 {
@@ -185,10 +185,10 @@ char zlg7289Key (void)
 }
 /*********************************************************************************************************
 ** Function name:       __zlg7289KeyInit
-** Descriptions:        ¶ÔZLG7289°´¼üÖĞ¶Ï³õÊ¼»¯
-** input parameters:    ÎŞ
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        å¯¹ZLG7289æŒ‰é”®ä¸­æ–­åˆå§‹åŒ–
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void __zlg7289KeyInit (void)
 {
@@ -198,30 +198,30 @@ void __zlg7289KeyInit (void)
     GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 ;   
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;	   //ÓÃÓÚÖĞ¶ÏÒı½Å£ºÉÏÀ­ÊäÈë
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;	   //ç”¨äºä¸­æ–­å¼•è„šï¼šä¸Šæ‹‰è¾“å…¥
     GPIO_Init(GPIOB, &GPIO_InitStructure);
     
-    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); 		  //ÅäÖÃ2Î»¸ßÓÅÏÈ¼¶£¨ÇÀÕ¼ÓÅÏÈ¼¶£©£¬2Î»×ÓÓÅÏÈ¼¶£¨ÏìÓ¦ÓÅÏÈ¼¶£©
+    NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2); 		  //é…ç½®2ä½é«˜ä¼˜å…ˆçº§ï¼ˆæŠ¢å ä¼˜å…ˆçº§ï¼‰ï¼Œ2ä½å­ä¼˜å…ˆçº§ï¼ˆå“åº”ä¼˜å…ˆçº§ï¼‰
     NVIC_InitStructure.NVIC_IRQChannel = EXTI3_IRQn;             
-    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3; 	  //Òı½ÅÖĞ¶ÏÇÀÕ¼ÓÅÏÈµÈ¼¶ÎªµÚ¶ş¼¶¡£
-    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2; 	          //Òı½ÅÖĞ¶Ï×ÓÓÅÏÈµÈ¼¶ÎªµÚ¶ş¼¶¡£
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 3; 	  //å¼•è„šä¸­æ–­æŠ¢å ä¼˜å…ˆç­‰çº§ä¸ºç¬¬äºŒçº§ã€‚
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 2; 	          //å¼•è„šä¸­æ–­å­ä¼˜å…ˆç­‰çº§ä¸ºç¬¬äºŒçº§ã€‚
     NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE; 
     NVIC_Init(&NVIC_InitStructure);    
  
-    GPIO_EXTILineConfig(GPIO_PortSourceGPIOB,GPIO_PinSource3);  //Ñ¡ÔñÖĞ¶ÏÒı½Å
+    GPIO_EXTILineConfig(GPIO_PortSourceGPIOB,GPIO_PinSource3);  //é€‰æ‹©ä¸­æ–­å¼•è„š
     EXTI_InitStructure.EXTI_Line = EXTI_Line3 ;		
-    EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;			//ÖĞ¶ÏÄ£Ê½£¬·ÇÊÂ¼ş
-    EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;		//ÏÂ½µÑØ´¥·¢
+    EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;			//ä¸­æ–­æ¨¡å¼ï¼Œéäº‹ä»¶
+    EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;		//ä¸‹é™æ²¿è§¦å‘
     EXTI_InitStructure.EXTI_LineCmd = ENABLE;
     EXTI_Init(&EXTI_InitStructure);    
     
 }
 /*********************************************************************************************************
 ** Function name:       ZLG7289Init
-** Descriptions:        ¶ÔZLG7289½øĞĞ³õÊ¼»¯
-** input parameters:    ÎŞ
-** output parameters:   ÎŞ
-** Returned value:      ÎŞ
+** Descriptions:        å¯¹ZLG7289è¿›è¡Œåˆå§‹åŒ–
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 void ZLG7289Init(void)
 {

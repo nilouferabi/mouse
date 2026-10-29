@@ -1,16 +1,16 @@
-/****************************************Copyright (c)**************************************************
+ï»¿/****************************************Copyright (c)**************************************************
 
 **--------------File Info-------------------------------------------------------------------------------
 ** File Name:          Type.h
 ** Last modified Date: 2014-05-10
 ** Last Version:       1.0
-** Description:        ÀàĞÍ¶¨ÒåÍ·ÎÄ¼ş
+** Description:        ç±»å‹å®šä¹‰å¤´æ–‡ä»¶
 ** 
 **------------------------------------------------------------------------------------------------------
-** Created By:          ³Â½Üºè
+** Created By:          é™ˆæ°é¸¿
 ** Created date:       2007-06-04
 ** Version:            1.0
-** Descriptions:       The original version ³õÊ¼°æ±¾
+** Descriptions:       The original version åˆå§‹ç‰ˆæœ¬
 **
 **------------------------------------------------------------------------------------------------------
 ** Modified by:
@@ -25,16 +25,16 @@
 
 
 /********************************************************************************************************
-*                       Date types(Compiler specific)  Êı¾İÀàĞÍ£¨ºÍ±àÒëÆ÷Ïà¹Ø£©                         *                 
+*                       Date types(Compiler specific)  æ•°æ®ç±»å‹ï¼ˆå’Œç¼–è¯‘å™¨ç›¸å…³ï¼‰                         *                 
 ********************************************************************************************************/
-typedef unsigned char   uint8;          // Unsigned  8 bit quantity  ÎŞ·ûºÅ8Î»ÕûĞÍ±äÁ¿      
-typedef signed   char   int8;           // Signed    8 bit quantity  ÓĞ·ûºÅ8Î»ÕûĞÍ±äÁ¿   
-typedef unsigned short  uint16;         // Unsigned 16 bit quantity  ÎŞ·ûºÅ16Î»ÕûĞÍ±äÁ¿
-typedef signed   short  int16;          // Signed   16 bit quantity  ÓĞ·ûºÅ16Î»ÕûĞÍ±äÁ¿ 
-typedef unsigned int    uint32;         // Unsigned 32 bit quantity  ÎŞ·ûºÅ32Î»ÕûĞÍ±äÁ¿ 
-typedef signed   int    int32;          // Signed   32 bit quantity  ÓĞ·ûºÅ32Î»ÕûĞÍ±äÁ¿
-typedef float           fp32;           // Single precision floating point µ¥¾«¶È¸¡µãÊı£¨32Î»³¤¶È£©    
-typedef double          fp64;           // Double precision floating point Ë«¾«¶È¸¡µãÊı£¨64Î»³¤¶È£©  
+typedef unsigned char   uint8;          // Unsigned  8 bit quantity  æ— ç¬¦å·8ä½æ•´å‹å˜é‡      
+typedef signed   char   int8;           // Signed    8 bit quantity  æœ‰ç¬¦å·8ä½æ•´å‹å˜é‡   
+typedef unsigned short  uint16;         // Unsigned 16 bit quantity  æ— ç¬¦å·16ä½æ•´å‹å˜é‡
+typedef signed   short  int16;          // Signed   16 bit quantity  æœ‰ç¬¦å·16ä½æ•´å‹å˜é‡ 
+typedef unsigned int    uint32;         // Unsigned 32 bit quantity  æ— ç¬¦å·32ä½æ•´å‹å˜é‡ 
+typedef signed   int    int32;          // Signed   32 bit quantity  æœ‰ç¬¦å·32ä½æ•´å‹å˜é‡
+typedef float           fp32;           // Single precision floating point å•ç²¾åº¦æµ®ç‚¹æ•°ï¼ˆ32ä½é•¿åº¦ï¼‰    
+typedef double          fp64;           // Double precision floating point åŒç²¾åº¦æµ®ç‚¹æ•°ï¼ˆ64ä½é•¿åº¦ï¼‰  
 
 #ifndef TRUE
 #define TRUE  1

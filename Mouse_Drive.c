@@ -1,13 +1,13 @@
-/*
+ï»¿/*
 ** File Name:           Mouse_Drive.c
-** Description:         ÔË¶¯¿ØÖÆ²ã£ºPID¡¢±àÂëÆ÷¡¢ºìÍâ/ÍÓÂÝ²ÉÑù¡¢1 ms ¿ØÖÆ»·¡¢¶¯×÷º¯Êý
+** Description:         è¿åŠ¨æŽ§åˆ¶å±‚ï¼šPIDã€ç¼–ç å™¨ã€çº¢å¤–/é™€èžºé‡‡æ ·ã€1 ms æŽ§åˆ¶çŽ¯ã€åŠ¨ä½œå‡½æ•°
 **
-**   ²ÎÊýÍ³Ò»ÔÚ Mouse_Tuning.h£»±¾ÎÄ¼þÖ»±£ÁôÊµÏÖ¡£
-**   ¿çÖÐ¶Ï¹²Ïí±äÁ¿ÒÑ¼Ó volatile£¬-Os ÏÂÃ¦µÈ²»»áÔÙ±»ÕÛµþ³ÉËÀÑ­»·¡£
+**   å‚æ•°ç»Ÿä¸€åœ¨ Mouse_Tuning.hï¼›æœ¬æ–‡ä»¶åªä¿ç•™å®žçŽ°ã€‚
+**   è·¨ä¸­æ–­å…±äº«å˜é‡å·²åŠ  volatileï¼Œ-Os ä¸‹å¿™ç­‰ä¸ä¼šå†è¢«æŠ˜å æˆæ­»å¾ªçŽ¯ã€‚
 *********************************************************************************************************/
 #include "Mouse_Drive.h"
 
-/* ±¾ÎÄ¼þÄÚ²¿º¯ÊýÔ­ÐÍ */
+/* æœ¬æ–‡ä»¶å†…éƒ¨å‡½æ•°åŽŸåž‹ */
 static void  __rightMotorContr(void);
 static void  __leftMotorContr(void);
 static void  __mouseCoorUpdate(void);
@@ -15,11 +15,11 @@ static void  __wallCheck(void);
 static void  __mazeInfDebug(void);
 
 /*
-  È«¾Ö±äÁ¿
-  ËµÃ÷£º¿çÖÐ¶Ï¶ÁÐ´µÄ±äÁ¿±ØÐë volatile£»Ö»ÔÚÖ÷Ñ­»·Ê¹ÓÃµÄ±äÁ¿±£³ÖÆÕÍ¨ÀàÐÍÒÔ¼õÐ¡¿ªÏú¡£
+  å…¨å±€å˜é‡
+  è¯´æ˜Žï¼šè·¨ä¸­æ–­è¯»å†™çš„å˜é‡å¿…é¡» volatileï¼›åªåœ¨ä¸»å¾ªçŽ¯ä½¿ç”¨çš„å˜é‡ä¿æŒæ™®é€šç±»åž‹ä»¥å‡å°å¼€é”€ã€‚
 */
 
-/* ---- ÃÔ¹¬/×ø±ê£¨Ö÷Ñ­»·¶ÀÕ¼£© ---- */
+/* ---- è¿·å®«/åæ ‡ï¼ˆä¸»å¾ªçŽ¯ç‹¬å ï¼‰ ---- */
 MAZECOOR GmcMouse                        = {0, 0};
 uint8    GucMouseDir                     = UP;
 uint8    GucMapBlock[MAZETYPE][MAZETYPE] = {0};
@@ -29,7 +29,7 @@ uint8    GucCrossroad                    = 0;
 uint8    GucDirTemp                      = 0;
 uint16   GucFangXiang                    = 0;
 
-/* ---- µç»ú / PID ---- */
+/* ---- ç”µæœº / PID ---- */
 static __MOTOR __GmLeft  = {0, 0, 0, 0, 0, 0};
 static __MOTOR __GmRight = {0, 0, 0, 0, 0, 0};
 static __PID   __GmLPID;
@@ -37,38 +37,38 @@ static __PID   __GmRPID;
 __PID          __GmSPID;
 __PID          __GmWPID;
 
-static volatile uint8  __GucMouseState = __STOP;          /* Ö÷Ñ­»·Ð´£¬SysTick ¶Á        */
-static volatile int32  __GiMaxSpeed    = SEARCHSPEED;     /* Ö÷Ñ­»·Ð´£¬SysTick ¶Á        */
+static volatile uint8  __GucMouseState = __STOP;          /* ä¸»å¾ªçŽ¯å†™ï¼ŒSysTick è¯»        */
+static volatile int32  __GiMaxSpeed    = SEARCHSPEED;     /* ä¸»å¾ªçŽ¯å†™ï¼ŒSysTick è¯»        */
 static volatile int32  __GiMinSpeed    = SEARCHSPEED;
 
-/* ---- ±àÂëÆ÷/¶¯×÷¹²ÏíÁ¿ ---- */
-static volatile uint32 GW;                                /* SysTick Ð´£¬¶¯×÷º¯Êý¶Á      */
-static float           GsTpusle_T;                        /* SysTick ÄÚÊ¹ÓÃ              */
-static volatile uint8  GuiSpeedCtr = 0;                   /* Ö÷Ñ­»·Ð´£¬SysTick ¶Á        */
-static uint16          GuiTpusle_LR = 0;                  /* ËÑË÷¶Î½ÓÍä²¹³¥             */
-static uint8           GucFrontNear = 0;                  /* ËÑË÷¶ÎÖÃÎ»£¬×ªÍäº¯Êý¶Á      */
-static volatile float  jiao = 0;                          /* ÍÓÂÝ»ý·Ö½Ç£¨ISR/Ö÷Ñ­»·¹²Ïí£©*/
-static volatile uint32 GucSysTickMs = 0;                  /* 1 ms ¼ÆÊ±£¬ÓÃÓÚ¶¯×÷³¬Ê±      */
+/* ---- ç¼–ç å™¨/åŠ¨ä½œå…±äº«é‡ ---- */
+static volatile uint32 GW;                                /* SysTick å†™ï¼ŒåŠ¨ä½œå‡½æ•°è¯»      */
+static float           GsTpusle_T;                        /* SysTick å†…ä½¿ç”¨              */
+static volatile uint8  GuiSpeedCtr = 0;                   /* ä¸»å¾ªçŽ¯å†™ï¼ŒSysTick è¯»        */
+static uint16          GuiTpusle_LR = 0;                  /* æœç´¢æ®µæŽ¥å¼¯è¡¥å¿             */
+static uint8           GucFrontNear = 0;                  /* æœç´¢æ®µç½®ä½ï¼Œè½¬å¼¯å‡½æ•°è¯»      */
+static volatile float  jiao = 0;                          /* é™€èžºç§¯åˆ†è§’ï¼ˆISR/ä¸»å¾ªçŽ¯å…±äº«ï¼‰*/
+static volatile uint32 GucSysTickMs = 0;                  /* 1 ms è®¡æ—¶ï¼Œç”¨äºŽåŠ¨ä½œè¶…æ—¶      */
 static volatile float  leftdis = 0;
 static volatile float  rightdis = 0;
-static float           piancha_r;                         /* ×ªÏòÆ«ÖÃ£¨Ö÷Ñ­»·£©          */
+static float           piancha_r;                         /* è½¬å‘åç½®ï¼ˆä¸»å¾ªçŽ¯ï¼‰          */
 static float           piancha_l;
 
-/* ---- ´«¸ÐÆ÷£¨TIM6 ÖÐ¶ÏÐ´£¬Ö÷Ñ­»·¶Á£© ---- */
+/* ---- ä¼ æ„Ÿå™¨ï¼ˆTIM6 ä¸­æ–­å†™ï¼Œä¸»å¾ªçŽ¯è¯»ï¼‰ ---- */
 static volatile uint8  __GucDistance[5] = {0};
 volatile uint16        ucIRCheck[4];
 uint16                 Sunlight[4];
 static float           W_l = 0;
 static float           W_r = 0;
-volatile uint8         GucFrontJinju = 0;                 /* Ç°·½½ü¾à£¬µÈ¸ßÍ¼ÓÃ          */
-volatile uint8         GucGoHead     = 0;                 /* START ÆðÅÜÅÐ¾Ý              */
+volatile uint8         GucFrontJinju = 0;                 /* å‰æ–¹è¿‘è·ï¼Œç­‰é«˜å›¾ç”¨          */
+volatile uint8         GucGoHead     = 0;                 /* START èµ·è·‘åˆ¤æ®              */
 
-/* ---- ÍÓÂÝ ---- */
+/* ---- é™€èžº ---- */
 u32           Angle_TLY[8] = {0};
 volatile u32  Angle_TLY_Average = 0;
 static u16            voltageDetectRef = TUNE_GYRO_ZERO_DEFAULT;
 
-/* ---- ºìÍâãÐÖµ£¨¿ÉÓÉ Flash ¸²¸Ç£»Ä¬ÈÏÖµ¼¯ÖÐÔÚ Mouse_Tuning.h£© ---- */
+/* ---- çº¢å¤–é˜ˆå€¼ï¼ˆå¯ç”± Flash è¦†ç›–ï¼›é»˜è®¤å€¼é›†ä¸­åœ¨ Mouse_Tuning.hï¼‰ ---- */
 volatile uint16 GusDistance_L_Near  = TUNE_IR_L_NEAR_DEFAULT;
 volatile uint16 GusDistance_L_Mid   = TUNE_IR_L_MID_DEFAULT;
 volatile uint16 GusDistance_L_Far   = TUNE_IR_L_FAR_DEFAULT;
@@ -80,7 +80,7 @@ volatile uint16 GusDistance_FR_Near = TUNE_IR_FR_NEAR_DEFAULT;
 volatile uint16 GusDistance_FL_Far  = TUNE_IR_FL_FAR_DEFAULT;
 volatile uint16 GusDistance_FR_Far  = TUNE_IR_FR_FAR_DEFAULT;
 
-/* ---- ±ê¶¨²é±í£¨mV ¡ú mm£¬201 µã£© ---- */
+/* ---- æ ‡å®šæŸ¥è¡¨ï¼ˆmV â†’ mmï¼Œ201 ç‚¹ï¼‰ ---- */
 float disCheck3[201]={222.597,215.542,209.024,202.979,197.356,192.109,187.199,182.593,178.262,174.18,170.325,166.678,163.221,159.939,156.818,153.846,151.012,148.305,145.717,143.24,140.866,138.588,136.401,134.299,132.276,130.328,128.451,126.641,124.893,123.204,121.572,119.993,118.465,116.985,115.55,114.159,112.809,111.499,110.226,108.989,107.787,106.617,105.479,104.371,103.291,102.239,101.214,100.214,99.2392,98.2874,97.3583,96.4509,95.5646,94.6984,93.8517,93.0237,92.214,91.4217,90.6463,89.8872,89.1439,88.4159,87.7027,87.0037,86.3186,85.6469,84.9882,84.3421,83.7082,83.0861,82.4756,81.8762,81.2876,80.7096,80.1417,79.5839,79.0357,78.4969,77.9672,77.4464,76.9343,76.4306,75.9352,75.4477,74.9681,74.496,74.0313,73.5739,73.1235,72.6799,72.2431,71.8128,71.3889,70.9712,70.5597,70.154,69.7542,69.3601,68.9715,68.5884,68.2106,67.8379,67.4703,67.1077,66.75,66.397,66.0487,65.7049,65.3656,65.0307,64.7001,64.3736,64.0513,63.733,63.4186,63.1081,62.8014,62.4984,62.1991,61.9034,61.6111,61.3223,61.0369,60.7548,60.476,60.2004,59.9278,59.6584,59.392,59.1286,58.8681,58.6105,58.3556,58.1036,57.8543,57.6076,57.3636,57.1221,56.8832,56.6468,56.4128,56.1813,55.9521,55.7253,55.5008,55.2785,55.0584,54.8406,54.6249,54.4113,54.1998,53.9904,53.783,53.5775,53.3741,53.1726,52.9729,52.7752,52.5793,52.3852,52.1929,52.0024,51.8136,51.6265,51.4411,51.2574,51.0753,50.8949,50.716,50.5387,50.363,50.1887,50.016,49.8448,49.6751,49.5068,49.3399,49.1744,49.0103,48.8476,48.6863,48.5262,48.3675,48.2101,48.054,47.8991,47.7455,47.5931,47.4419,47.292,47.1432,46.9956,46.8491,46.7038,46.5597,46.4166,46.2746,46.1337,45.9939,45.8552,45.7175};
 float disCheck2[201]={189.038,184.056,179.427,175.114,171.081,167.3,163.746,160.398,157.236,154.244,151.408,148.715,146.152,143.711,141.381,139.155,137.026,134.986,133.029,131.151,129.346,127.609,125.937,124.325,122.77,121.269,119.819,118.416,117.059,115.745,114.472,113.238,112.041,110.878,109.75,108.653,107.586,106.549,105.539,104.556,103.598,102.665,101.755,100.868,100.002,99.1569,98.3316,97.5254,96.7376,95.9676,95.2146,94.4781,93.7575,93.0522,92.3617,91.6855,91.0231,90.374,89.7379,89.1142,88.5027,87.9029,87.3144,86.7369,86.1701,85.6136,85.0672,84.5305,84.0033,83.4853,82.9762,82.4758,81.9838,81.5,81.0242,80.5562,80.0957,79.6426,79.1967,78.7578,78.3256,77.9001,77.4811,77.0684,76.6618,76.2613,75.8666,75.4776,75.0942,74.7163,74.3436,73.9762,73.6139,73.2566,72.9041,72.5564,72.2133,71.8747,71.5406,71.2109,70.8854,70.5641,70.2469,69.9336,69.6243,69.3189,69.0171,68.7191,68.4247,68.1338,67.8464,67.5624,67.2817,67.0043,66.7301,66.459,66.191,65.9261,65.6642,65.4051,65.1489,64.8956,64.645,64.3971,64.1519,63.9094,63.6693,63.4319,63.1969,62.9643,62.7342,62.5064,62.281,62.0578,61.8368,61.6181,61.4016,61.1872,60.9749,60.7646,60.5564,60.3502,60.146,59.9437,59.7433,59.5449,59.3482,59.1534,58.9604,58.7691,58.5796,58.3919,58.2058,58.0213,57.8385,57.6574,57.4778,57.2998,57.1234,56.9484,56.775,56.6031,56.4326,56.2636,56.096,55.9298,55.765,55.6015,55.4394,55.2786,55.1192,54.961,54.8041,54.6485,54.4941,54.3409,54.189,54.0382,53.8886,53.7402,53.593,53.4468,53.3018,53.1579,53.0151,52.8734,52.7327,52.5931,52.4545,52.317,52.1804,52.0449,51.9104,51.7768,51.6442,51.5126,51.3819,51.2521,51.1233,50.9954,50.8683};
 float disCheck0[201]={440.174,422.152,405.657,390.497,376.513,363.572,351.557,340.37,329.928,320.155,310.989,302.374,294.259,286.602,279.364,272.511,266.012,259.84,253.97,248.38,243.05,237.962,233.099,228.446,223.99,219.718,215.619,211.683,207.898,204.258,200.752,197.375,194.118,190.976,187.941,185.01,182.175,179.433,176.779,174.209,171.718,169.303,166.961,164.687,162.48,160.336,158.252,156.226,154.256,152.338,150.472,148.654,146.883,145.157,143.475,141.834,140.234,138.672,137.147,135.658,134.204,132.783,131.394,130.037,128.709,127.411,126.14,124.897,123.68,122.488,121.321,120.178,119.058,117.96,116.884,115.829,114.795,113.78,112.784,111.807,110.849,109.908,108.984,108.077,107.186,106.31,105.45,104.605,103.775,102.959,102.156,101.367,100.591,99.8279,99.0771,98.3385,97.6117,96.8964,96.1924,95.4993,94.8171,94.1452,93.4836,92.8321,92.1902,91.5579,90.935,90.3211,89.7162,89.1199,88.5322,87.9529,87.3816,86.8184,86.263,85.7152,85.1749,84.6419,84.1161,83.5973,83.0854,82.5803,82.0817,81.5897,81.104,80.6245,80.1511,79.6837,79.2221,78.7663,78.3162,77.8716,77.4324,76.9986,76.57,76.1465,75.7281,75.3146,74.906,74.5022,74.103,73.7085,73.3185,72.9329,72.5517,72.1748,71.8021,71.4335,71.069,70.7086,70.352,69.9994,69.6505,69.3054,68.964,68.6262,68.292,67.9613,67.634,67.3101,66.9896,66.6723,66.3583,66.0475,65.7398,65.4352,65.1337,64.8351,64.5395,64.2468,63.957,63.67,63.3857,63.1042,62.8254,62.5493,62.2757,62.0048,61.7364,61.4705,61.207,60.946,60.6874,60.4312,60.1773,59.9256,59.6763,59.4292,59.1843,58.9416,58.701,58.4626,58.2262,57.9919,57.7596,57.5294,57.3011,57.0748,56.8504,56.6279,56.4073};
@@ -95,7 +95,7 @@ float ADCmv(int AD)
   return (float)(AD * TUNE_ADC_VREF_MV / TUNE_ADC_FULL_SCALE);
 }
 
-/*Âö³å²âÊÔº¯Êý*/
+/*è„‰å†²æµ‹è¯•å‡½æ•°*/
 void __delay(uint32 uiD)
 {
     volatile uint32 i;
@@ -159,7 +159,7 @@ void __SPIDContr(void)
                               + K_I * __GmSPID.fKi * error
                               + __GmSPID.fKd * dd_error);
 
-    /* Ö»·ÀÖ¹ int16 Òç³ö£¬²»¸Ä±äÕý³£·¶Î§ */
+    /* åªé˜²æ­¢ int16 æº¢å‡ºï¼Œä¸æ”¹å˜æ­£å¸¸èŒƒå›´ */
     if (__GmSPID.iPreU > TUNE_PID_I_LIMIT)
         __GmSPID.iPreU = TUNE_PID_I_LIMIT;
     else if (__GmSPID.iPreU < -TUNE_PID_I_LIMIT)
@@ -241,7 +241,7 @@ void __Encoder(void)
     dir_r = (TIM3->CR1 & 0x0010) >> 4;
     dir_l = (TIM2->CR1 & 0x0010) >> 4;
 
-    if (dir_l == 1)                             /* ÏòÏÂ¼ÆÊý£ººóÍË */
+    if (dir_l == 1)                             /* å‘ä¸‹è®¡æ•°ï¼šåŽé€€ */
     {
         __GmLPID.usFeedBack = TUNE_ENCODER_CENTER - __GmLPID.usEncoder_new;
         TIM_SetCounter(TIM2, TUNE_ENCODER_CENTER);
@@ -258,7 +258,7 @@ void __Encoder(void)
         __GmLPID.sFeedBack = __GmLPID.usFeedBack;
     }
 
-    if (dir_r == 1)                             /* ÏòÏÂ¼ÆÊý£ºÇ°½ø */
+    if (dir_r == 1)                             /* å‘ä¸‹è®¡æ•°ï¼šå‰è¿› */
     {
         __GmRPID.usFeedBack = TUNE_ENCODER_CENTER - __GmRPID.usEncoder_new;
         TIM_SetCounter(TIM3, TUNE_ENCODER_CENTER);
@@ -283,10 +283,10 @@ void __irSendFreq(int8 __cNumber)
 {
     switch (__cNumber)
     {
-      case 1:  GPIO_SetBits(GPIOA, GPIO_Pin_5);  break;   /* Ç°×ó·¢Éä */
-      case 2:  GPIO_SetBits(GPIOC, GPIO_Pin_13); break;   /* Ç°ÓÒ·¢Éä */
-      case 3:  GPIO_SetBits(GPIOA, GPIO_Pin_3);  break;   /* ×ó·¢Éä   */
-      case 4:  GPIO_SetBits(GPIOC, GPIO_Pin_2);  break;   /* ÓÒ·¢Éä   */
+      case 1:  GPIO_SetBits(GPIOA, GPIO_Pin_5);  break;   /* å‰å·¦å‘å°„ */
+      case 2:  GPIO_SetBits(GPIOC, GPIO_Pin_13); break;   /* å‰å³å‘å°„ */
+      case 3:  GPIO_SetBits(GPIOA, GPIO_Pin_3);  break;   /* å·¦å‘å°„   */
+      case 4:  GPIO_SetBits(GPIOC, GPIO_Pin_2);  break;   /* å³å‘å°„   */
       default: break;
     }
 }
@@ -371,7 +371,7 @@ uint8 startCheck(void)
 {
     if (GPIO_ReadInputDataBit(GPIOC, __START) == 0)
     {
-        __delay(50);                                /* ¼òµ¥Ïû¶¶ */
+        __delay(50);                                /* ç®€å•æ¶ˆæŠ– */
         while (GPIO_ReadInputDataBit(GPIOC, __START) == 0);
         return true;
     }
@@ -386,9 +386,9 @@ void TIM3_IRQHandler(void)
 
 u32 GyroscopeDebug[8] = {0};
 /*
-SourceDate : ²ÉÑùÖµ´æ´¢µØÖ·
-NewDate : ÐÂ²ÉÑùÖµ
-Average £º·µ»ØÖµ
+SourceDate : é‡‡æ ·å€¼å­˜å‚¨åœ°å€
+NewDate : æ–°é‡‡æ ·å€¼
+Average ï¼šè¿”å›žå€¼
 */
 void GyroscopeFilter(u32 NewDate, u32 *SourceDate, volatile u32 *Average)
 {
@@ -458,13 +458,13 @@ void TIM6_IRQHandler(void)
 
     switch (ucState)
     {
-    case 0:                                             /* ÓÒºìÍâ£ºÏÈ¼Ç»·¾³¹â */
+    case 0:                                             /* å³çº¢å¤–ï¼šå…ˆè®°çŽ¯å¢ƒå…‰ */
         Sunlight[3] = ADC_ConvertedValue[3];
         ucState++;
         __irSendFreq(4);
         break;
 
-    case 1:                                             /* ÓÒºìÍâ£º²â·´Éä¹â */
+    case 1:                                             /* å³çº¢å¤–ï¼šæµ‹åå°„å…‰ */
         ucIRCheck[3] = ADC_ConvertedValue[3] - Sunlight[3];
         if (ucIRCheck[3] > TUNE_IR_R_SAT)
             ucIRCheck[3] = 0;
@@ -493,13 +493,13 @@ void TIM6_IRQHandler(void)
         ucState++;
         break;
 
-    case 2:                                             /* Ç°×ó£º¼Ç»·¾³¹â */
+    case 2:                                             /* å‰å·¦ï¼šè®°çŽ¯å¢ƒå…‰ */
         Sunlight[0] = ADC_ConvertedValue[0];
         ucState++;
         __irSendFreq(1);
         break;
 
-    case 3:                                             /* Ç°×ó£º²â·´Éä¹â */
+    case 3:                                             /* å‰å·¦ï¼šæµ‹åå°„å…‰ */
         ucIRCheck[0] = ADC_ConvertedValue[0] - Sunlight[0];
         if (ucIRCheck[0] > TUNE_IR_FRONT_SAT)
             ucIRCheck[0] = 0;
@@ -519,13 +519,13 @@ void TIM6_IRQHandler(void)
         ucState++;
         break;
 
-    case 4:                                             /* Ç°ÓÒ£º¼Ç»·¾³¹â */
+    case 4:                                             /* å‰å³ï¼šè®°çŽ¯å¢ƒå…‰ */
         Sunlight[1] = ADC_ConvertedValue[1];
         ucState++;
         __irSendFreq(2);
         break;
 
-    case 5:                                             /* Ç°ÓÒ£º²â·´Éä¹â */
+    case 5:                                             /* å‰å³ï¼šæµ‹åå°„å…‰ */
         ucIRCheck[1] = ADC_ConvertedValue[1] - Sunlight[1];
         if (ucIRCheck[1] > TUNE_IR_FRONT_SAT)
             ucIRCheck[1] = 0;
@@ -542,7 +542,7 @@ void TIM6_IRQHandler(void)
         else
             __GucDistance[__FRONTR] &= 0xfd;
 
-        /* START ÆðÅÜÅÐ¾Ý£º×óÇ°ÓÐÇ½ÇÒÓÒÇ°ÎÞÇ½ */
+        /* START èµ·è·‘åˆ¤æ®ï¼šå·¦å‰æœ‰å¢™ä¸”å³å‰æ— å¢™ */
         if ((ucIRCheck[0] > GusDistance_FL_Far) &&
             (ucIRCheck[1] < GusDistance_FR_Far))
             GucGoHead = 1;
@@ -552,13 +552,13 @@ void TIM6_IRQHandler(void)
         ucState++;
         break;
 
-    case 6:                                             /* ×óºìÍâ£º¼Ç»·¾³¹â */
+    case 6:                                             /* å·¦çº¢å¤–ï¼šè®°çŽ¯å¢ƒå…‰ */
         Sunlight[2] = ADC_ConvertedValue[2];
         ucState++;
         __irSendFreq(3);
         break;
 
-    case 7:                                             /* ×óºìÍâ£º²â·´Éä¹â */
+    case 7:                                             /* å·¦çº¢å¤–ï¼šæµ‹åå°„å…‰ */
         ucIRCheck[2] = ADC_ConvertedValue[2] - Sunlight[2];
         if (ucIRCheck[2] > TUNE_IR_FRONT_SAT)
             ucIRCheck[2] = 0;
@@ -599,10 +599,10 @@ void TIM6_IRQHandler(void)
 
 /*********************************************************************************************************
 ** Function name:       SysTick_Handler
-** Descriptions:        ¶¨Ê±ÖÐ¶ÏÉ¨Ãè¡£
-** input parameters:    ÎÞ
-** output parameters:   ÎÞ
-** Returned value:      ÎÞ
+** Descriptions:        å®šæ—¶ä¸­æ–­æ‰«æã€‚
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 uint8 end_speedr=0;
 uint8 end_speedl=0;
@@ -654,7 +654,7 @@ void SysTick_Handler(void)
     }
 
     __Encoder();
-    TIM6_IRQHandler();                  /* ±£ÁôÔ­ÐÐÎª£ºÓë TIM6 ÖÐ¶Ï¹¹³ÉË«´¥·¢ */
+    TIM6_IRQHandler();                  /* ä¿ç•™åŽŸè¡Œä¸ºï¼šä¸Ž TIM6 ä¸­æ–­æž„æˆåŒè§¦å‘ */
 
     t++;
     s++;
@@ -696,7 +696,7 @@ void SysTick_Handler(void)
                 GsTpusle_T = 0;
             }
 
-            __PIDContr();               /* Ô­´úÂëÔÚ±¾×´Ì¬»áËãÁ½´Î PID£¬ÎðºÏ²¢ */
+            __PIDContr();               /* åŽŸä»£ç åœ¨æœ¬çŠ¶æ€ä¼šç®—ä¸¤æ¬¡ PIDï¼Œå‹¿åˆå¹¶ */
 
             if (GuiSpeedCtr == __SPEEDUP)
             {
@@ -713,7 +713,7 @@ void SysTick_Handler(void)
         }
         else if (__GucMouseState == __GOAHEAD_45)
         {
-            /* Ð±ÏòÖ±ÐÐ£º²»ÓÃ²àÇ½ÕÒÕý£¬¿¿ÍÓÂÝ»ý·Ö½Ç±£³Öº½Ïò */
+            /* æ–œå‘ç›´è¡Œï¼šä¸ç”¨ä¾§å¢™æ‰¾æ­£ï¼Œé é™€èžºç§¯åˆ†è§’ä¿æŒèˆªå‘ */
             GsTpusle_T = TUNE_8DIR_GYRO_FF * jiao;
             voltageDetect1();
             voltageDetect();
@@ -898,10 +898,10 @@ void mouseStop(void)
 
 /****************************************************************************************************
 ** Function name:       mouseTurnright
-** Descriptions:        ÓÒ×ª
-** input parameters:    ÎÞ
-** output parameters:   ÎÞ
-** Returned value:      ÎÞ         °´²½Êý×ªÍä
+** Descriptions:        å³è½¬
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ—          æŒ‰æ­¥æ•°è½¬å¼¯
 *********************************************************************************************************/
 void mouseTurnright(void)
 {
@@ -956,10 +956,10 @@ void mouseTurnright(void)
 
 /*********************************************************************************************************
 ** Function name:       mouseTurnleft
-** Descriptions:        ×ó×ª
-** input parameters:    ÎÞ
-** output parameters:   ÎÞ
-** Returned value:      ÎÞ
+** Descriptions:        å·¦è½¬
+** input parameters:    æ— 
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 
 void mouseTurnleft(void)
@@ -1102,7 +1102,7 @@ void mouseTurnleft_C(void)
     __GucMouseState = __GOAHEAD;
     GuiSpeedCtr = TUNE_SPEED_HOLD;
 
-    /* Ô­´úÂë´Ë´¦ÏµÊýÊÇ 286.67£¨ÆäÓàÎ»ÖÃÎª 2886.67£©£¬ÏÈ±£Áô²¢±ê¼Ç */
+    /* åŽŸä»£ç æ­¤å¤„ç³»æ•°æ˜¯ 286.67ï¼ˆå…¶ä½™ä½ç½®ä¸º 2886.67ï¼‰ï¼Œå…ˆä¿ç•™å¹¶æ ‡è®° */
     __GmLeft.uiPulse = TUNE_TURN90_PULSE_C_L - piancha_l * TUNE_TURN_PULSE_PER_DEG_L;
     __GmLeft.uiPulseCtr = 0;
     __GmRight.uiPulse = TUNE_TURN90_PULSE_C_L - piancha_l * TUNE_TURN_PULSE_PER_DEG_L;
@@ -1299,7 +1299,7 @@ void mouseTurnbackqidian(void)
     __GucMouseState = __TURNBACK;
     __GmLeft.cState  = __MOTORRUN;
     __GmRight.cState = __MOTORRUN;
-    GucMouseDir = (GucMouseDir + 2) % 4;           /* Ô­´úÂëÈç´Ë£¬±£Áô */
+    GucMouseDir = (GucMouseDir + 2) % 4;           /* åŽŸä»£ç å¦‚æ­¤ï¼Œä¿ç•™ */
     __GmWPID.sRef = TUNE_TURNBACK_WPID;
 
     while (1)
@@ -1472,10 +1472,10 @@ void voltageDetect1(void)
 
 /*********************************************************************************************************
 ** Function name:       mazeSearch
-** Descriptions:        Ç°½øN¸ñ
-** input parameters:    iNblock: Ç°½øµÄ¸ñÊý
-** output parameters:   ÎÞ
-** Returned value:      ÎÞ
+** Descriptions:        å‰è¿›Næ ¼
+** input parameters:    iNblock: å‰è¿›çš„æ ¼æ•°
+** output parameters:   æ— 
+** Returned value:      æ— 
 *********************************************************************************************************/
 static int16   GuiTpusle_LR_l                     = 0;
 static int16   GuiTpusle_LR_r                      = 0; 
@@ -1740,8 +1740,8 @@ static void __wallCheck(void)
 
 uint8 DenggaoCheck(void)
 {
-    /* ×¢Òâ£ºµ±Ç°Ó²¼þÃ»ÓÐµ¥¶ÀµÄ¡°ÕýÇ°·½¡±²ÛÎ»£¬__GucDistance[__FRONT] ºãÎª 0£¬
-       Òò´Ë±¾º¯ÊýÄ¿Ç°ºã·µ»Ø false¡£±£ÁôÔ­Âß¼­£¬ÆôÓÃÇ°ÐèÏÈÌî³ä¸Ã²ÛÎ»¡£ */
+    /* æ³¨æ„ï¼šå½“å‰ç¡¬ä»¶æ²¡æœ‰å•ç‹¬çš„â€œæ­£å‰æ–¹â€æ§½ä½ï¼Œ__GucDistance[__FRONT] æ’ä¸º 0ï¼Œ
+       å› æ­¤æœ¬å‡½æ•°ç›®å‰æ’è¿”å›ž falseã€‚ä¿ç•™åŽŸé€»è¾‘ï¼Œå¯ç”¨å‰éœ€å…ˆå¡«å……è¯¥æ§½ä½ã€‚ */
     if ((__GucDistance[__FRONT]) &&
         (__GucDistance[__LEFT] & 0x01) &&
         (__GucDistance[__RIGHT] & 0x01))
@@ -1760,10 +1760,10 @@ uint8 PulseCtrCheck(void)
 
 
 /*======================================================================================================
-  8 ÏòÔË¶¯Ô­Óï
-    - mouseTurnTo()      £ºÔ­µØ×ªµ½Ä¿±ê¾ø¶Ô·½Ïò£¨0..7£©
-    - mouseGoOneBlock()  £ºÑØµ±Ç°·½Ïò×ßÒ»¸ñ£¨Õý½»/Ð±Ïò£©
-  ËµÃ÷£ºÕâÁ½¼¶Ö»¸ºÔð¡°Ò»¸ñ + Ò»´Î×ªÏò¡±£¬Â·¾¶ÓÉ Mouse_Nav.c ¹æ»®¡£
+  8 å‘è¿åŠ¨åŽŸè¯­
+    - mouseTurnTo()      ï¼šåŽŸåœ°è½¬åˆ°ç›®æ ‡ç»å¯¹æ–¹å‘ï¼ˆ0..7ï¼‰
+    - mouseGoOneBlock()  ï¼šæ²¿å½“å‰æ–¹å‘èµ°ä¸€æ ¼ï¼ˆæ­£äº¤/æ–œå‘ï¼‰
+  è¯´æ˜Žï¼šè¿™ä¸¤çº§åªè´Ÿè´£â€œä¸€æ ¼ + ä¸€æ¬¡è½¬å‘â€ï¼Œè·¯å¾„ç”± Mouse_Nav.c è§„åˆ’ã€‚
 ======================================================================================================*/
 
 static void __resetPID(void)
@@ -1798,7 +1798,7 @@ static void __stopMotors(void)
     __GmLeft.uiPulseCtr  = 0;
 }
 
-/* steps45: ÕýÊýÓÒ×ª£¬¸ºÊý×ó×ª£¬µ¥Î» 45 ¶È */
+/* steps45: æ­£æ•°å³è½¬ï¼Œè´Ÿæ•°å·¦è½¬ï¼Œå•ä½ 45 åº¦ */
 static uint8 __turnInPlace(int8 steps45)
 {
     uint8  right;
@@ -1907,7 +1907,7 @@ uint8 mouseGoOneBlock(uint8 dir)
             return 0;
         }
 
-        /* Ð±Ïò°²È«£ºÁ½¸öÇ°Ïò½ü¾à¶¼´¥·¢£¬ËµÃ÷Ç°·½/½ÇÂäÓÐÕÏ°­£¬Á¢¼´Í£³µ */
+        /* æ–œå‘å®‰å…¨ï¼šä¸¤ä¸ªå‰å‘è¿‘è·éƒ½è§¦å‘ï¼Œè¯´æ˜Žå‰æ–¹/è§’è½æœ‰éšœç¢ï¼Œç«‹å³åœè½¦ */
         if (TUNE_8DIR_FRONT_SAFETY && diagonal &&
             (ucIRCheck[0] > GusDistance_FL_Near) &&
             (ucIRCheck[1] > GusDistance_FR_Near))
