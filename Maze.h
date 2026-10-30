@@ -5,7 +5,7 @@
 **
 **--------------File Info---------------------------------------------------------------------------------
 ** File Name:           Maze.h
-** Description:         电脑鼠应用层（迷宫算法 + 状态机）头文件
+** Description:         电脑鼠共享数据、状态常量与主程序接口
 **
 *********************************************************************************************************/
 
@@ -20,6 +20,7 @@
 #include "Type.h"
 #include "Micromouse.h"
 #include "Mouse_Config.h"
+#include "Maze_Algo.h"
 
 /*********************************************************************************************************
   电脑鼠状态机
@@ -38,13 +39,6 @@
   应用层内部函数（定义在 main.c）
 *********************************************************************************************************/
 void  delay(uint32 uiD);
-void  mapStepEdit(int8 cX, int8 cY);
-void  mapStepEdithong(int8 cX, int8 cY);
-void  objectGoTo1(int8 cXdst, int8 cYdst);
-void  floodMethodnew(int8 cXdst, int8 cYdst);
-void  centralMethodnew(void);
-void  goalwall(void);
-void  floodwall(void);
 void  StartSave(void);
 void  wallsave(void);
 void  wallget(void);

@@ -6,11 +6,12 @@
 
 | 项目 | 重构前 | 重构后 |
 |---|---:|---:|
-| `Scr/` 应用代码总行数 | 10 915 | 5 660 |
+| `Scr/` 应用代码总行数 | 10 915 | 5 735 |
 | `Mouse_Drive.c` | 6 444 | 1 928 |
-| `main.c` | 2 148 | 1 502 |
+| `main.c` | 2 148 | 408 |
+| `Maze_Algo.c`（新增） | — | 1 142 |
 | `Mouse_Nav.c`（新增） | — | 295 |
-| `-Os` 固件 Flash | 24 420 B，动作函数被折叠成死循环 | **28 040 B（21.39%），可运行** |
+| `-Os` 固件 Flash | 24 420 B，动作函数被折叠成死循环 | **28 112 B（21.45%），可运行** |
 | `-O0` 固件 Flash | 46 688 B | 45 444 B（34.67%） |
 
 核心变化：
@@ -43,6 +44,10 @@
    旧 `Mouse_Srv.c` 的 `Diagonalway/actiongenerate/actionsequence` 是一套只服务单次冲刺的特殊动作序列，且原工程从未编译过。
    这次用 `Mouse_Nav.c` 重写成通用 8 邻域规划，避免把旧思路的隐式约束带回来。
 
+6. **寻路算法从 `main.c` 拆出**
+   等高图、洪水填充、岔路决策、目标选择、4 向寻路执行移到 `Maze_Algo.c/h`。
+   `main.c` 从 1 502 行降到 408 行，只保留状态机、Flash 存取、串口和调试接口。
+
 ---
 
 ## 二、文件结构
@@ -51,8 +56,9 @@
 Scr/
 ├── Mouse_Config.h          工程级配置：迷宫尺寸、终点、搜索法则、ONEBLOCK / ONEBLOCK_45
 ├── Mouse_Tuning.h          ★ 重点参数集中区（调车先看这里）
-├── Maze.h                  应用层（迷宫算法 + 状态机）接口
-├── main.c                  状态机、等高图/洪水、岔路记录、Flash 存取、串口
+├── Maze.h                  共享数据、状态常量、主程序接口
+├── Maze_Algo.h / .c        ★ 等高图、洪水填充、岔路决策、目标选择、4 向寻路
+├── main.c                  状态机、Flash 存取、串口、调试接口
 ├── Mouse_Nav.h / .c        ★ 8 邻域路径规划 + 冲刺执行
 ├── Mouse_Drive.h / .c      PID、编码器、红外/陀螺采样、1 ms 控制环、动作函数
 ├── Mouse_Drive_Init.h/.c   时钟、ADC+DMA、TIM1 PWM、TIM2/3 编码器、TIM6、风扇
@@ -64,10 +70,10 @@ Scr/
 └── README.md
 ```
 
-参与构建的 7 个 `.c`：
-`main.c`、`Mouse_Drive.c`、`Mouse_Nav.c`、`Mouse_Drive_Init.c`、`stmflash.c`、`zlg7289.c`、`stm32f10x_it.c`。
+参与构建的 8 个 `.c`：
+`main.c`、`Maze_Algo.c`、`Mouse_Drive.c`、`Mouse_Nav.c`、`Mouse_Drive_Init.c`、`stmflash.c`、`zlg7289.c`、`stm32f10x_it.c`。
 
-> IAR 工程需要手动把 `Mouse_Nav.c` 加入源文件列表。
+> IAR 工程需要手动把 `Maze_Algo.c`、`Mouse_Nav.c` 加入源文件列表。
 
 ### 编码约定
 
@@ -204,11 +210,48 @@ ucIRCheck[i] = ADC - Sunlight
 - `mazeSearch()` 每走完一格调用 `__mouseCoorUpdate()` → `__wallCheck()`；
 - 搜索决策用 `crosswayCheck()` 数未走过支路，`crosswayChoice()` 按 `SEARCHMETHOD` 选法则。
 
+### 4.4 地图保存
+
+保存的是**墙/连通性地图**，不是红外电压或距离：
+
+- 每格 4 bit：bit0 北、bit1 东、bit2 南、bit3 西；`1`=有路，`0`=有墙；
+- `GucMapBlock` 是物理墙图，`GucMapBlock0` 是探索记录，`GucMapBlock1` 是洪水副本；
+- 只有 `GucMapBlock` 会被 `wallsave()` 保存：
+  ```c
+  STMFLASH_Write(MAPE_SAVE_ADDRESS, (u16 *)GucMapBlock4, 256);
+  ```
+  `0x08018800` 起写 256 个半字 = 512 B（实际数据 256 B，高字节为 0）。
+- `wallget()` 读回 256 个半字，取低字节还原 `GucMapBlock`；
+- 起点由 `StartSave()` 写到 `0x08019000`，`StartGet()` 读回；`start == 15` 表示车在另一侧起点；
+- 红外阈值地址是 `0x08010000`，`__ir_Get()` 目前仍被注释，实际用 `TUNE_IR_*_DEFAULT`；
+- 没有 magic/CRC/版本/地图完整度；空片读成 `0xFF` 会变成“所有方向都通”的假图。
+
 ---
 
-## 五、可以怎么改进
+## 五、代码需要改进的地方
 
-### 5.1 识墙
+### 5.1 当前主要问题（按优先级）
+
+| 优先级 | 问题 | 现状 | 影响 |
+|---|---|---|---|
+| P0 | 终点坐标不一致 | X 运行期 8/7，Y 仍是 6/6，`goalwall()` 按 7/8 | 三个模式可能都跑错终点 |
+| P0 | 没有物理终点识别 | 只有 `GmcMouse` 坐标匹配 | 终点换位置必须改配置 |
+| P0 | 搜索首次到终点就停 | `centralMethodnew()` 到点直接 `goto End2` | 地图可能不完整，模式 2 受限 |
+| P0 | 没有模式抽象 | `WAIT` 里按 `start` 计数直接跳状态 | 加模式 2 会继续堆 `if` |
+| P0 | 规划与执行耦合 | `mouseSpurt_8_to_goal()` 算完立刻跑 | 无法只算路线、保存路线 |
+| P1 | 8 向未计转向代价 | Dijkstra 距离 + 平局少转向 | 不是严格最优路线 |
+| P1 | 没有路径缓存 | 模式 3 每次重新规划 | 冲刺前多花时间，路线不可复用 |
+| P1 | 4 向 `objectGoTo1()` 是贪心 | 只看等高值下降 | 路径可能多绕 |
+| P1 | 冲刺逐格停车 | `mouseGoOneBlock()` 每格 `__stopMotors()` | 不是真正高速冲刺 |
+| P1 | 45°/135° 未实车标定 | 参数按几何推导 | 可能转不准、斜向跑偏 |
+| P2 | 旧动作没有统一超时 | `Mouse_Drive.c` 里 10+ 个 `while(1)` | 堵转/断线会卡死 |
+| P2 | `DenggaoCheck()` 恒为假 | `__GucDistance[__FRONT]` 从未写入 | 搜索中“遇墙停车”失效 |
+| P2 | 地图边界检查不足 | `crosswayCheck()`、`objectGoTo1()` 直接访问 `cX+1/cY+1` | 边缘可能越界 |
+| P2 | 三份墙图分散更新 | `GucMapBlock`、`GucMapBlock0`、`GucMapBlock1` | 可能不一致 |
+| P2 | Flash 存档无校验 | 没有 magic/CRC/版本 | 空片可能读成 0xFF |
+| P3 | 可观测性弱 | 没有模式号、路径长度、单圈时间 | 调试靠猜 |
+
+### 5.2 识墙
 
 1. **连续距离代替三档标志**
    现在 `__GucDistance` 只有远/近/更近三档。可直接用 `leftdis/rightdis/fldis/frdis`（mm）做比例控制，墙判定用双阈值 + 回差。
@@ -223,7 +266,7 @@ ucIRCheck[i] = ADC - Sunlight
 6. **地图一致性**
    `GucMapBlock`、`GucMapBlock0`、`GucMapBlock1` 三份图建议统一由一个 `SetWall()` 维护，避免只更新一份。
 
-### 5.2 转向
+### 5.3 转向
 
 1. **陀螺 + 编码器融合**
    现在 `jiao` 只靠陀螺积分，长时间会漂；可用 `互补滤波`：陀螺积分 + 左右轮差推算角度。
@@ -236,7 +279,7 @@ ucIRCheck[i] = ADC - Sunlight
 5. **堵转检测**
    编码器脉冲长时间不增、电流过大时停车，而不是等超时。
 
-### 5.3 八向规划
+### 5.4 八向规划
 
 1. **转向代价进 A\***
    现在是“最短距离 + 平局时少转向”；可把状态扩成 `(x,y,dir)`，把 45°/90° 转向代价直接放进 A*。
@@ -249,7 +292,56 @@ ucIRCheck[i] = ADC - Sunlight
 
 ---
 
-## 六、八向冲刺怎么标定
+## 六、重点参数说明
+
+> 单位约定：速度 = 每 1 ms 编码器脉冲数；PWM = TIM1 CCR 计数；距离 = mm；
+> 红外阈值 = ADC 原始计数；陀螺角度 = 度。
+
+| 分组 | 宏 / 变量 | 当前值 | 作用与影响 |
+|---|---|---:|---|
+| 迷宫 | `MAZETYPE` | 16 | 迷宫边长；改 8 要同时改终点和数组 |
+| 终点 | `XDST0/1`、`YDST0/1` | 6 / 6 / 6 / 6 | 编译期终点；当前与运行期 X=8/7 不一致 |
+| 终点 | `TUNE_GOAL_X0/X1` | 8 / 7 | START 分支覆盖的 X 目标 |
+| 一格脉冲 | `ONEBLOCK` | 51600 | 正交走一格的编码器脉冲 |
+| 斜向脉冲 | `ONEBLOCK_45` | 36410 | 斜向走一格；≈ `ONEBLOCK/√2` |
+| 搜索速度 | `SEARCHSPEED` | 140 | 搜索阶段最高速度 |
+| 8 向速度 | `TUNE_8DIR_SPEED_ORTHO/DIAG` | 180 / 150 | 冲刺正交/斜向最高速 |
+| 转向速度 | `TUNE_TURN_SPEED` | 145 | 90° 转向时前进速度设定 |
+| 掉头回程 | `TUNE_TURNBACK_RETURN_SPEED` | 150 | 180° 后回程速度 |
+| PID | `TUNE_PID_KP/KI/KD` | 20 / 0.1 / 0 | 全工程唯一一组 PID 增益 |
+| PWM 限幅 | `TUNE_PID_U_MAX` | 1400 | TIM1 ARR=2880，最大占空比约 48.6% |
+| PID 死区 | `TUNE_PID_DEADBAND` | 3 | 速度环死区 |
+| 积分分离 | `TUNE_PID_ERROR_IMAX` | 10 | 误差大于 10 时关积分 |
+| 贴墙目标 | `TUNE_WALL_L/R_TARGET_DIST` | 75 / 100 | 左右墙目标距离 |
+| 贴墙有效距离 | `TUNE_WALL_L/R_ACTIVE_DIST` | 120 / 170 | 超过此距离不参与校正 |
+| 90° 判据 | `TUNE_TURN90_W_SEARCH_R/L` | 95000 / 86500 | 搜索段 `GW` 阈值 |
+| 90° 判据 | `TUNE_TURN90_W_C_R/L` | 93000 / 84000 | 冲刺段 `GW` 阈值 |
+| 转向后续直行 | `TUNE_TURN90_PULSE_*` | 17000 / 21000 / 9600 | 右转 / 搜索左转 / 冲刺左转 |
+| 8 向转向 | `TUNE_8DIR_TURN_SPIN` | 120 | 原地旋转的差速 PWM 设定 |
+| 8 向角度修正 | `TUNE_8DIR_TURN_TRIM_R/L` | 0.95 | 实际转不够就调大，转过头就调小 |
+| 8 向陀螺保持 | `TUNE_8DIR_GYRO_FF` | 3 | 斜向直行的航向保持增益 |
+| 8 向超时 | `TUNE_8DIR_TURN/MOVE_TIMEOUT_MS` | 2000 / 6000 | 转向/单格直行超时，防卡死 |
+| 红外默认阈值 | `TUNE_IR_*_DEFAULT` | 见文件 | 远/中/近判定，单位 ADC 计数 |
+| 红外查表 | `TUNE_IR_R_OFFSET_MV/STEP_MV` | 300 / 15 | 左右距离表起点/步长 |
+| 红外饱和 | `TUNE_IR_R_SAT/FRONT_SAT` | 35000 / 30000 | 超过就丢弃本次读数 |
+| 陀螺零位 | `TUNE_GYRO_ZERO_DEFAULT` | 2041 | 上电零漂校准起点 |
+| 陀螺换算 | `TUNE_GYRO_GW_SCALE` | 5121 | `GW → W` 比例 |
+| 陀螺灵敏度 | `TUNE_GYRO_SENSITIVITY_MV` | 1055 | mV/(°/s) |
+| 陀螺校准 | `TUNE_GYRO_CAL_SAMPLES` | 3000 | 1 kHz 下约 3 s |
+| 按键 | `TUNE_START_PRESS_*` | 1 / 3 / 8 | 搜索 / 直接冲刺 / 校准 |
+| 风扇 | `TUNE_FAN_DUTY` | 600 | TIM4 风扇占空比 |
+| 地图存档 | `TUNE_FLASH_MAP_WORDS` | 256 | 256 个半字 = 512 B |
+
+**推荐调参顺序：**
+
+1. `ONEBLOCK` / `ONEBLOCK_45`：先保证走一格、斜一格的实际距离；
+2. 红外阈值/查表：保证墙判定和 mm 读数可信；
+3. `TUNE_WALL_*`：调贴墙目标与有效距离；
+4. PID：先 `KP`，再少量 `KI`，最后考虑 `KD`；
+5. 转向阈值/脉冲：90° 先准，再 45°/135°/180°；
+6. 8 向速度/陀螺增益：最后提速。
+
+## 七、八向冲刺怎么标定
 
 建议顺序（先在空地上，不要直接上迷宫）：
 
@@ -276,7 +368,7 @@ ucIRCheck[i] = ADC - Sunlight
 
 ---
 
-## 七、构建与验证
+## 八、构建与验证
 
 ```bash
 make                 # 默认 -Os
@@ -298,8 +390,8 @@ make flash
 
 | 构建 | Flash | RAM | 折叠成死循环的函数 |
 |---|---:|---:|---|
-| `-Os` | 28 040 B（21.39%） | 9 208 B（44.96%） | 仅 `HardFault` 等 5 个异常处理 |
-| `-O0` | 45 444 B（34.67%） | 9 232 B（45.08%） | 仅 `LoopForever` |
+| `-Os` | 28 112 B（21.45%） | 9 208 B（44.96%） | 仅 `HardFault` 等 5 个异常处理 |
+| `-O0` | 45 444 B（34.67%） | 9 240 B（45.12%） | 仅 `LoopForever` |
 
 主机侧 8 邻域规划器测试（`make test-nav`，不接硬件）：
 
@@ -311,7 +403,49 @@ make flash
 
 ---
 
-## 八、仍然保留、需要实车确认的点
+## 九、断点位置与调试
+
+| 想停在哪 | GDB 命令 | 用途 |
+|---|---|---|
+| 状态机入口 | `break main` | 看启动流程；此时外设还没初始化 |
+| 红外测压 | `./debug.sh --ir` | 停在 `TIM6_IRInit` 前：发射管关闭、ADC 已启动 |
+| 搜索到终点 | `break centralMethodnew` | 模式 1 的探索循环 |
+| 洪水/返回 | `break floodMethodnew` | 搜索结束后的洪水与回程 |
+| 4 向寻路执行 | `break objectGoTo1` | 按等高图逐格走 |
+| 等高图生成 | `break mapStepEdit` | 看 `GucMapStep` 怎么铺 |
+| 4 向冲刺 | `break mouseSpurt_CC` | 选最近终点格并执行 |
+| 单格搜索 | `break mazeSearch` | 一格一格的墙图更新 |
+| 8 向转向 | `break mouseTurnTo` | 45°/90°/135°/180° 原地转 |
+| 8 向单格 | `break mouseGoOneBlock` | 正交/斜向走一格 |
+| 纯旋转细节 | `break __turnInPlace` | `jiao` 角度闭环（静态函数） |
+| 1 ms 控制环 | `break SysTick_Handler` | PID、编码器、墙跟随；1 kHz，建议加条件 |
+| 墙图更新 | `break __wallCheck` | 看当前格四方向判定（静态函数） |
+| 墙图变化 | `watch GucMapBlock[7][7]` | 只盯中心格，别 watch 整个数组 |
+
+调试命令：
+
+```text
+st        打印状态机 / 红外标志 / PID / 电机
+params    打印 PID、sRef、红外阈值、陀螺零位
+irvol     红外测压：ADC 原始值 + mV + 环境光差值
+iron 1..4 打开 FL/FR/L/R 发射管并测电压
+irtest    自动扫四路发射管
+c         继续
+```
+
+注意：
+
+- `-Os` 下静态函数可能被内联，断点不一定能停；要稳定打断点先用
+  `make OPT="-O0 -g3"` 再 `./debug.sh`。
+- `SysTick_Handler` 每 1 ms 进一次，直接断会像“死机”；用
+  `ignore <断点号> 100` 或条件断点。
+- 同名静态函数建议用文件限定：
+  `break 'Maze_Algo.c'::floodMethodnew`、`break 'Mouse_Drive.c'::__wallCheck`。
+- 正常调试用 `./debug.sh`，红外测压用 `./debug.sh --ir`。
+
+---
+
+## 十、仍然保留、需要实车确认的点
 
 1. **终点 Y 坐标三处不一致**
    `Mouse_Config.h` 的 `YDST0/YDST1 = 6,6`；`main()` 只把 X 改成 8/7；`goalwall()` 内部按 7/8 处理。本次没有改行为。
@@ -332,7 +466,7 @@ make flash
 
 ---
 
-## 九、最常改的地方
+## 十一、最常改的地方
 
 | 想改什么 | 去哪里 |
 |---|---|
@@ -344,7 +478,9 @@ make flash
 | 标定查表（mV→mm） | `Mouse_Drive.c` 的 `disCheck0..3` |
 | 8 邻域规划 / 转向代价 | `Mouse_Nav.c` |
 | 动作函数细节 | `Mouse_Drive.c` |
-| 状态机 / 等高图 / 洪水 | `main.c` |
+| 状态机 / Flash / 串口 | `main.c` |
+| 等高图 / 洪水 / 岔路 / 4 向寻路 | `Maze_Algo.c` |
+| 8 邻域规划 / 转向代价 | `Mouse_Nav.c` |
 | 引脚与外设初始化 | `Mouse_Drive_Init.c` |
 | Flash 分区 | `stmflash.h` |
 
