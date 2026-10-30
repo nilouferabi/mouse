@@ -1,5 +1,7 @@
 ﻿#include "Mouse_Drive_Init.h"
 #include "Mouse_Config.h"
+#include "Mouse_Fan.h"
+#include "Mouse_Led.h"
 /*********************************************************************************************************
   定义全局变量
 *********************************************************************************************************/
@@ -309,45 +311,6 @@ void ENCR_Init(void)
   TIM_Cmd(TIM3, ENABLE);  
   TIM_SetCounter(TIM3, 0);
 } 
-void LED_Init(void)
-{
- 
- GPIO_InitTypeDef  GPIO_InitStructure;
- 	
- RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-	
- GPIO_InitStructure.GPIO_Pin = GPIO_Pin_12;
- GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
- GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
- GPIO_Init(GPIOB, &GPIO_InitStructure);
- GPIO_SetBits(GPIOB,GPIO_Pin_12);
-}
- void fan_init(u16 arr,u16 psc)	 //TIM4	PB8
- {		 					 
- 	//RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);//使能TIM4时钟
-        RCC->APB1ENR|=1<<2; 	//TIM4时钟使能    
- 	RCC->APB2ENR|=1<<3;    	//Enable IO PB
-       	RCC->APB2ENR|=1<<0;   //Enable AFIO Clock  
-     
- 	GPIOB->CRH&=0XFFFFFFF0;	//Clear the State of PB8
- 	GPIOB->CRH|=0X0000000B;	//Set   the State of PB8  	 
-
- 	AFIO->MAPR&=0XFFFFEFFF; //清除MAPR的12位，tim4   数据手册122页  如果修改IO口这里也需要变
- //	AFIO->MAPR|=1<<11;      //部分重影映像,TIM3_CH2->PB5
-
-        TIM4->CCR3 = 0;  //通道3初始化占空比
- 	TIM4->ARR=arr;			//设定计数器的自动重装载值 
- 	TIM4->PSC=psc;			//预分频器不分频
- 	
- 	TIM4->CCMR2|=6<<4;  	//CH3PWM2 模式
- 	TIM4->CCMR2|=1<<3; 	  //CH3装载使能	 
- // 	TIM4->CCMR1|=7<<12;  	//CH2 PWM模式	 
- // 	TIM4->CCMR1|=1<<11; 	//CH2	 
- 	TIM4->CCER  |= 1<<8;   	//OC3 输出使能
- // 	TIM4->CCER|=1<<4;   	//OC2 输出使能	   
- 	TIM4->CR1=0x0080;   	//ARPE使能 
- 	TIM4->CR1|=0x01;    	//使能定时器4											  
- }  
 void MouseInit(void)
 {
 	SysTick_Configuration();
@@ -358,8 +321,8 @@ void MouseInit(void)
         __keyInit ();
         AD_Init();
         TIM6_IRInit();
-        LED_Init();
-        fan_init(TUNE_FAN_PWM_PERIOD, 0);
+        Led_Init();
+        Fan_Init();
 	//PIDInit();
 }
 

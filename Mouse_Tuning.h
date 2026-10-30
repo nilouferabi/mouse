@@ -207,8 +207,14 @@
 #define TUNE_GOAL_X1                    7
 #define TUNE_START_MARK                 15          /* Flash 中“起点在左上角”的标记                */
 #define TUNE_FLASH_MAP_WORDS            256         /* 地图存档半字数                              */
-#define TUNE_FAN_DUTY                   600         /* 风扇 PWM 占空比                             */
-#define TUNE_FAN_PWM_PERIOD             3600        /* 风扇 TIM4 ARR                               */
+#define TUNE_FAN_DUTY                   600         /* 负压风扇冲刺占空比（0..3600）               */
+#define TUNE_FAN_PWM_PERIOD             3600        /* 负压风扇 TIM4 ARR                           */
+#define TUNE_LED_SEARCH_ON_MS           100         /* 搜索慢闪：亮 100 ms                         */
+#define TUNE_LED_SEARCH_PERIOD_MS       1000        /* 搜索慢闪：周期 1 s                          */
+#define TUNE_LED_NEAR_ON_MS             80          /* 近终点快闪：亮 80 ms                        */
+#define TUNE_LED_NEAR_PERIOD_MS         160         /* 近终点快闪：周期 160 ms                     */
+#define TUNE_LED_NEAR_GOAL_CELLS        2           /* 曼哈顿距离 ≤ 2 格算“近终点”                 */
+#define TUNE_LED_ACTIVE_HIGH            1           /* 1: PB12 高电平点亮；0: 低电平点亮            */
 #define TUNE_UART_BAUD                  9600        /* USART3 波特率                               */
 #define TUNE_UART_IRQ_PREEMPT           3           /* USART3 抢占优先级                           */
 #define TUNE_UART_IRQ_SUB               2           /* USART3 子优先级                             */

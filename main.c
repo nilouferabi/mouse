@@ -34,6 +34,8 @@
 #include "zlg7289.h"
 #include "Mouse_Drive.h"
 #include "Mouse_Nav.h"
+#include "Mouse_Fan.h"
+#include "Mouse_Led.h"
 #include "stmflash.h"
 #include "stdio.h"
 /*********************************************************************************************************
@@ -272,7 +274,8 @@ int main(void)
     USART3_Config();
     USART3_NVIC_Config();
     floodwall();
-    GPIO_SetBits(GPIOB, GPIO_Pin_12);
+    Fan_Off();
+    Led_SetMode(LED_MODE_OFF);
 
     while (1) {
         switch (GucMouseTask) {                                 /*  状态机处理                   */
@@ -286,26 +289,25 @@ int main(void)
             if ((start == TUNE_START_PRESS_SEARCH) && GucGoHead) {
                 start = 0;
                 zijiaozheng0 = 1;
-                GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+                Led_SetMode(LED_MODE_SEARCH);
                 delay(TUNE_DELAY_SETTLE);
                 GucMouseTask = START;
                 delay(TUNE_DELAY_POST_ACTION);
-                GPIO_SetBits(GPIOB, GPIO_Pin_12);
                 zijiaozheng0 = 1;
             }
             if (start == TUNE_START_PRESS_CALIB) {
                 start = 0;
                 zijiaozheng0 = 1;
-                GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+                Led_SetMode(LED_MODE_SEARCH);
                 delay(TUNE_DELAY_SETTLE);
-                TIM4->CCR3 = TUNE_FAN_DUTY;
                 delay(TUNE_DELAY_POST_ACTION);
-                GPIO_SetBits(GPIOB, GPIO_Pin_12);
+                Led_SetMode(LED_MODE_OFF);
                 zijiaozheng0 = 1;
             }
             if ((start >= TUNE_START_PRESS_SPURT_MIN) &&
                 (start < TUNE_START_PRESS_SPURT_MAX) && GucGoHead) {
-                GPIO_ResetBits(GPIOB, GPIO_Pin_12);
+                Fan_Off();
+                Led_SetMode(LED_MODE_OFF);
                 zijiaozheng0 = 1;
                 start = 0;
                 wallget();
@@ -322,8 +324,8 @@ int main(void)
             break;
 
         case START:                                             /*  判断电脑鼠起点的横坐标       */
+            Led_SetMode(LED_MODE_SEARCH);
             delay(TUNE_DELAY_SETTLE);
-            GPIO_ResetBits(GPIOB, GPIO_Pin_12);
             mazeSearch();                                       /*  向前搜索                     */
             if (GucMapBlock[GmcMouse.cX][GmcMouse.cY] & 0x08) {
                 if (MAZETYPE == 16) {
@@ -357,11 +359,11 @@ int main(void)
             break;
 
         case MAZESEARCH:
+            Led_SetMode(LED_MODE_SEARCH);
             centralMethodnew();
             goalwall();
             StartSave();
             wallsave();
-            TIM4->CCR3 = TUNE_FAN_DUTY;
             mouseTurnback();
             objectGoTo1(GucXStart, GucYStart);
             mouseTurnbackqi();
@@ -370,6 +372,8 @@ int main(void)
             break;
 
         case SPURTL:                                            /*  一冲（普通冲刺 / 8 向冲刺）  */
+            Led_SetMode(LED_MODE_SPRINT);
+            Fan_On();
             StartGet();
             wallget();
             goalwall();
@@ -379,6 +383,8 @@ int main(void)
             if (nav == NAV_NO_PATH) {
                 mouseSpurt_CC();                                /*  地图没有斜向通路，回退 4 向  */
             } else if (nav != NAV_OK) {
+                Fan_Off();
+                Led_SetMode(LED_MODE_OFF);
                 mouseStop();                                    /*  运动超时/中止，停车待查       */
                 GucMouseTask = WAIT;
                 delay(TUNE_DELAY_SETTLE);
@@ -392,6 +398,8 @@ int main(void)
             objectGoTo1(GucXStart, GucYStart);
             onestep3();
             mouseTurnbackqidian();
+            Fan_Off();
+            Led_SetMode(LED_MODE_OFF);
             GucMouseTask = WAIT;
             delay(TUNE_DELAY_SETTLE);
             break;

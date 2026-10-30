@@ -6,6 +6,7 @@
 **   跨中断共享变量已加 volatile，-Os 下忙等不会再被折叠成死循环。
 *********************************************************************************************************/
 #include "Mouse_Drive.h"
+#include "Mouse_Led.h"
 
 /* 本文件内部函数原型 */
 static void  __rightMotorContr(void);
@@ -633,10 +634,10 @@ uint8 zijiaozheng_flag=1;
 
 void SysTick_Handler(void)
 {
-    static uint8  k = 0;
-    static uint16 t = 0, s = 0;
+    static uint8 k = 0;
 
     GucSysTickMs++;
+    Led_Tick();
 
     if (zijiaozheng0 == 1)
     {
@@ -656,19 +657,6 @@ void SysTick_Handler(void)
     __Encoder();
     TIM6_IRQHandler();                  /* 保留原行为：与 TIM6 中断构成双触发 */
 
-    t++;
-    s++;
-    if (t == 1000)
-    {
-        t = 0;
-        GPIO_SetBits(GPIOB, GPIO_Pin_12);
-        if (s == 2000)
-        {
-            s = 0;
-            GPIO_ResetBits(GPIOB, GPIO_Pin_12);
-        }
-    }
-
     switch (__GmRight.cState)
     {
     case __MOTORSTOP:
@@ -684,12 +672,10 @@ void SysTick_Handler(void)
             if (leftdis < TUNE_WALL_L_ACTIVE_DIST)
             {
                 GsTpusle_T = TUNE_WALL_L_GAIN * (leftdis - TUNE_WALL_L_TARGET_DIST);
-                GPIO_SetBits(GPIOB, GPIO_Pin_12);
             }
             else if (rightdis < TUNE_WALL_R_ACTIVE_DIST)
             {
                 GsTpusle_T = -TUNE_WALL_R_GAIN * (rightdis - TUNE_WALL_R_TARGET_DIST);
-                GPIO_ResetBits(GPIOB, GPIO_Pin_12);
             }
             else
             {

@@ -6,13 +6,15 @@
 
 | 项目 | 重构前 | 重构后 |
 |---|---:|---:|
-| `Scr/` 应用代码总行数 | 10 915 | 5 735 |
-| `Mouse_Drive.c` | 6 444 | 1 928 |
-| `main.c` | 2 148 | 408 |
+| `Scr/` 应用代码总行数 | 10 915 | 5 920 |
+| `Mouse_Drive.c` | 6 444 | 1 914 |
+| `main.c` | 2 148 | 416 |
 | `Maze_Algo.c`（新增） | — | 1 142 |
 | `Mouse_Nav.c`（新增） | — | 295 |
-| `-Os` 固件 Flash | 24 420 B，动作函数被折叠成死循环 | **28 112 B（21.45%），可运行** |
-| `-O0` 固件 Flash | 46 688 B | 45 444 B（34.67%） |
+| `Mouse_Fan.c`（新增） | — | 58 |
+| `Mouse_Led.c`（新增） | — | 120 |
+| `-Os` 固件 Flash | 24 420 B，动作函数被折叠成死循环 | **28 320 B（21.61%），可运行** |
+| `-O0` 固件 Flash | 46 688 B | 45 952 B（35.06%） |
 
 核心变化：
 
@@ -59,9 +61,11 @@ Scr/
 ├── Maze.h                  共享数据、状态常量、主程序接口
 ├── Maze_Algo.h / .c        ★ 等高图、洪水填充、岔路决策、目标选择、4 向寻路
 ├── main.c                  状态机、Flash 存取、串口、调试接口
+├── Mouse_Fan.h / .c        ★ 负压风扇封装（仅冲刺使用）
+├── Mouse_Led.h / .c        ★ 状态灯：搜索慢闪 / 近终点快闪 / 冲刺常亮
 ├── Mouse_Nav.h / .c        ★ 8 邻域路径规划 + 冲刺执行
 ├── Mouse_Drive.h / .c      PID、编码器、红外/陀螺采样、1 ms 控制环、动作函数
-├── Mouse_Drive_Init.h/.c   时钟、ADC+DMA、TIM1 PWM、TIM2/3 编码器、TIM6、风扇
+├── Mouse_Drive_Init.h/.c   时钟、ADC+DMA、TIM1 PWM、TIM2/3 编码器、TIM6
 ├── zlg7289.c / .h          数码管 + 键盘
 ├── stmflash.c / .h         内部 Flash（地图 / 起点 / 红外阈值）
 ├── stm32f10x_it.c / .h     异常向量
@@ -70,10 +74,10 @@ Scr/
 └── README.md
 ```
 
-参与构建的 8 个 `.c`：
-`main.c`、`Maze_Algo.c`、`Mouse_Drive.c`、`Mouse_Nav.c`、`Mouse_Drive_Init.c`、`stmflash.c`、`zlg7289.c`、`stm32f10x_it.c`。
+参与构建的 10 个 `.c`：
+`main.c`、`Maze_Algo.c`、`Mouse_Drive.c`、`Mouse_Fan.c`、`Mouse_Led.c`、`Mouse_Nav.c`、`Mouse_Drive_Init.c`、`stmflash.c`、`zlg7289.c`、`stm32f10x_it.c`。
 
-> IAR 工程需要手动把 `Maze_Algo.c`、`Mouse_Nav.c` 加入源文件列表。
+> IAR 工程需要手动把 `Maze_Algo.c`、`Mouse_Fan.c`、`Mouse_Led.c`、`Mouse_Nav.c` 加入源文件列表。
 
 ### 编码约定
 
@@ -226,6 +230,28 @@ ucIRCheck[i] = ADC - Sunlight
 - 红外阈值地址是 `0x08010000`，`__ir_Get()` 目前仍被注释，实际用 `TUNE_IR_*_DEFAULT`；
 - 没有 magic/CRC/版本/地图完整度；空片读成 `0xFF` 会变成“所有方向都通”的假图。
 
+### 4.5 状态灯与负压风扇
+
+**负压风扇**（`Mouse_Fan.c/h`）：
+
+- 硬件：TIM4_CH3 → PB8，AF 推挽；
+- `Fan_Init()` 在 `MouseInit()` 里初始化，默认 `CCR3 = 0`（关闭）；
+- 只在 `SPURTL` 冲刺阶段调用 `Fan_On()`，结束/中止时 `Fan_Off()`；
+- 搜索、校准、WAIT 都不打开；
+- 占空比：`Fan_SetDuty(0..3600)`，`TUNE_FAN_DUTY = 600` 约 16.7%；
+- 如果泵需要全速，先试 `Fan_SetDuty(TUNE_FAN_PWM_PERIOD)`，但注意电池和驱动电流。
+
+**状态灯**（`Mouse_Led.c/h`）：
+
+- 硬件：PB12，默认高电平点亮（`TUNE_LED_ACTIVE_HIGH = 1`）；
+- `Led_Tick()` 在 `SysTick_Handler()` 里每 1 ms 调用一次；
+- 模式：
+  - `LED_MODE_SEARCH`：慢闪（默认 100 ms 亮 / 1 s 周期）；
+  - 搜索中离任一终点格曼哈顿距离 ≤ `TUNE_LED_NEAR_GOAL_CELLS`（默认 2）时自动快闪（80 ms 亮 / 160 ms 周期）；
+  - `LED_MODE_SPRINT`：常亮；
+  - `LED_MODE_OFF`：灭。
+- 原来 SysTick 里 1 s 闪烁和左右贴墙时直接写 PB12 的逻辑已移除，统一由 `Led_Tick()` 管理。
+
 ---
 
 ## 五、代码需要改进的地方
@@ -329,7 +355,11 @@ ucIRCheck[i] = ADC - Sunlight
 | 陀螺灵敏度 | `TUNE_GYRO_SENSITIVITY_MV` | 1055 | mV/(°/s) |
 | 陀螺校准 | `TUNE_GYRO_CAL_SAMPLES` | 3000 | 1 kHz 下约 3 s |
 | 按键 | `TUNE_START_PRESS_*` | 1 / 3 / 8 | 搜索 / 直接冲刺 / 校准 |
-| 风扇 | `TUNE_FAN_DUTY` | 600 | TIM4 风扇占空比 |
+| 风扇 | `TUNE_FAN_DUTY` / `TUNE_FAN_PWM_PERIOD` | 600 / 3600 | 仅冲刺打开；占空比 = 600/3600 ≈ 16.7% |
+| 状态灯 | `TUNE_LED_ACTIVE_HIGH` | 1 | PB12 高电平点亮 |
+| 搜索慢闪 | `TUNE_LED_SEARCH_ON_MS` / `PERIOD_MS` | 100 / 1000 | 亮 100 ms，周期 1 s |
+| 近终点快闪 | `TUNE_LED_NEAR_ON_MS` / `PERIOD_MS` | 80 / 160 | 亮 80 ms，周期 160 ms |
+| 近终点判定 | `TUNE_LED_NEAR_GOAL_CELLS` | 2 | 到任一终点格曼哈顿距离 ≤ 2 |
 | 地图存档 | `TUNE_FLASH_MAP_WORDS` | 256 | 256 个半字 = 512 B |
 
 **推荐调参顺序：**
@@ -390,8 +420,8 @@ make flash
 
 | 构建 | Flash | RAM | 折叠成死循环的函数 |
 |---|---:|---:|---|
-| `-Os` | 28 112 B（21.45%） | 9 208 B（44.96%） | 仅 `HardFault` 等 5 个异常处理 |
-| `-O0` | 45 444 B（34.67%） | 9 240 B（45.12%） | 仅 `LoopForever` |
+| `-Os` | 28 320 B（21.61%） | 9 208 B（44.96%） | 仅 `HardFault` 等 5 个异常处理 |
+| `-O0` | 45 952 B（35.06%） | 9 240 B（45.12%） | 仅 `LoopForever` |
 
 主机侧 8 邻域规划器测试（`make test-nav`，不接硬件）：
 
@@ -420,6 +450,8 @@ make flash
 | 纯旋转细节 | `break __turnInPlace` | `jiao` 角度闭环（静态函数） |
 | 1 ms 控制环 | `break SysTick_Handler` | PID、编码器、墙跟随；1 kHz，建议加条件 |
 | 墙图更新 | `break __wallCheck` | 看当前格四方向判定（静态函数） |
+| 风扇开关 | `break Fan_On` / `break Fan_Off` | 确认只在 SPURTL 打开 |
+| 灯光模式 | `break Led_SetMode` | 看当前进入 SEARCH/SPRINT/OFF |
 | 墙图变化 | `watch GucMapBlock[7][7]` | 只盯中心格，别 watch 整个数组 |
 
 调试命令：
@@ -479,6 +511,8 @@ c         继续
 | 8 邻域规划 / 转向代价 | `Mouse_Nav.c` |
 | 动作函数细节 | `Mouse_Drive.c` |
 | 状态机 / Flash / 串口 | `main.c` |
+| 负压风扇 | `Mouse_Fan.c` |
+| 状态灯 | `Mouse_Led.c` |
 | 等高图 / 洪水 / 岔路 / 4 向寻路 | `Maze_Algo.c` |
 | 8 邻域规划 / 转向代价 | `Mouse_Nav.c` |
 | 引脚与外设初始化 | `Mouse_Drive_Init.c` |
