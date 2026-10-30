@@ -286,6 +286,14 @@ make size
 make flash
 ```
 
+红外测压（不发射/发射时 ADC 电压）：
+
+```bash
+./debug.sh --ir
+# 停在 TIM6_IRInit 前：IR 发射管关闭、ADC/DMA 已启动
+# 进入 gdb 后：irvol / irsave / iron 1..4 / iroff / irtest / c
+```
+
 本次验证结果：
 
 | 构建 | Flash | RAM | 折叠成死循环的函数 |
