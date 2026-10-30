@@ -459,11 +459,32 @@ make flash
 ```text
 st        打印状态机 / 红外标志 / PID / 电机
 params    打印 PID、sRef、红外阈值、陀螺零位
+ready     运行到 main.c:280（初始化完成，可发运动原语）
+fwd       沿当前朝向直行一格（mouseGoOneBlock(0)）
 irvol     红外测压：ADC 原始值 + mV + 环境光差值
 iron 1..4 打开 FL/FR/L/R 发射管并测电压
 irtest    自动扫四路发射管
 c         继续
 ```
+
+直行调试流程：
+
+```text
+./debug.sh
+(gdb) ready      # 或 c：从 main 跑到 main.c:280，初始化完成
+(gdb) fwd        # 沿当前朝向直行一格
+(gdb) st         # 看电机/坐标/状态
+```
+
+注意：`mouseGoOneBlock(0)` 只是“向前走一格”的原语，**不会自动转向，也不会更新
+`GmcMouse` 坐标、不会查正交墙**。要换方向先：
+
+```text
+(gdb) call mouseTurnTo(2)   # 0=北 2=东 4=南 6=西
+(gdb) fwd
+```
+
+直行测试请架空轮子或在空地/走廊进行，避免直接撞墙。
 
 注意：
 
