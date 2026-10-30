@@ -6,24 +6,28 @@
 
 | 项目 | 重构前 | 重构后 |
 |---|---:|---:|
-| `Scr/` 应用代码总行数 | 10 915 | 5 920 |
-| `Mouse_Drive.c` | 6 444 | 1 914 |
-| `main.c` | 2 148 | 416 |
-| `Maze_Algo.c`（新增） | — | 1 142 |
-| `Mouse_Nav.c`（新增） | — | 295 |
-| `Mouse_Fan.c`（新增） | — | 58 |
-| `Mouse_Led.c`（新增） | — | 120 |
-| `-Os` 固件 Flash | 24 420 B，动作函数被折叠成死循环 | **28 320 B（21.61%），可运行** |
-| `-O0` 固件 Flash | 46 688 B | 45 952 B（35.06%） |
+| `Scr/` 应用代码总行数 | 10 915 | 6 156 |
+| `control/motion_control.c` | 6 444 | 1 791 |
+| `app/main.c` | 2 148 | 204 |
+| `app/maze_search.c`（新增） | — | 968 |
+| `app/path_4dir.c`（新增） | — | 188 |
+| `app/path_8dir.c`（新增） | — | 295 |
+| `control/motion_8dir.c`（新增） | — | 138 |
+| `bsp/board_init.c` | — | 233 |
+| `bsp/sensor_init.c`（新增） | — | 158 |
+| `app/maze_storage.c`（新增） | — | 85 |
+| `app/serial_debug.c`（新增） | — | 137 |
+| `-Os` 固件 Flash | 24 420 B，动作函数被折叠成死循环 | **28 260 B（21.56%），可运行** |
+| `-O0` 固件 Flash | 46 688 B | 45 960 B（35.06%） |
 
 核心变化：
 
-1. **重点参数集中到 `Mouse_Tuning.h`**
+1. **重点参数集中到 `tuning.h`**
    按机械/编码器、PID、贴墙、90° 转向、掉头、搜索衔接、红外 ADC、陀螺、**八向冲刺**、流程外设、时间基准分组。
 
 2. **删除不可达代码**
    30 多个历史动作变体、`__irCheck` 旧副本、`mouseGoahead` 旧系列、重复的 `mouseSpurt`、死数组/死变量等。
-   `Mouse_Drive.c` 从 6 444 行降到 1 928 行。
+   `control/motion_control.c` 从 6 444 行降到 1 791 行。
 
 3. **修复确定性缺陷**
    - 跨中断变量加 `volatile`，`-Os` 下忙等不再被折叠成 `b .`；
@@ -44,11 +48,23 @@
 
 5. **45° 旧代码没有直接搬回**
    旧 `Mouse_Srv.c` 的 `Diagonalway/actiongenerate/actionsequence` 是一套只服务单次冲刺的特殊动作序列，且原工程从未编译过。
-   这次用 `Mouse_Nav.c` 重写成通用 8 邻域规划，避免把旧思路的隐式约束带回来。
+   这次用 `path_8dir.c` 重写成通用 8 邻域规划，避免把旧思路的隐式约束带回来。
 
-6. **寻路算法从 `main.c` 拆出**
-   等高图、洪水填充、岔路决策、目标选择、4 向寻路执行移到 `Maze_Algo.c/h`。
-   `main.c` 从 1 502 行降到 408 行，只保留状态机、Flash 存取、串口和调试接口。
+6. **寻路算法从主文件拆出**
+   等高图、洪水填充、岔路决策、搜索移到 `app/maze_search.c/h`，4 向路径执行移到 `app/path_4dir.c/h`。
+   `app/main.c` 从 1 502 行降到 204 行，只保留状态机。
+
+7. **按职责分类**
+   - `app/`：状态机、迷宫搜索、4/8 向路径、地图存档、调试串口；
+   - `control/`：电机/传感器/4 向动作、8 向运动原语；
+   - `bsp/`：板级初始化、ADC/红外/TIM6、风扇、状态灯、数码管、Flash、中断向量；
+   - `config/`：工程配置、调参、类型、迷宫结构；
+   - `util/`：延时、位带。
+
+8. **继续拆分主文件**
+   `app/main.c` 再拆出 `maze_storage`、`serial_debug`；
+   `bsp/board_init.c` 再拆出 `sensor_init`；
+   `control/motion_control.c` 再拆出 `motion_8dir`。
 
 ---
 
@@ -56,28 +72,58 @@
 
 ```
 Scr/
-├── Mouse_Config.h          工程级配置：迷宫尺寸、终点、搜索法则、ONEBLOCK / ONEBLOCK_45
-├── Mouse_Tuning.h          ★ 重点参数集中区（调车先看这里）
-├── Maze.h                  共享数据、状态常量、主程序接口
-├── Maze_Algo.h / .c        ★ 等高图、洪水填充、岔路决策、目标选择、4 向寻路
-├── main.c                  状态机、Flash 存取、串口、调试接口
-├── Mouse_Fan.h / .c        ★ 负压风扇封装（仅冲刺使用）
-├── Mouse_Led.h / .c        ★ 状态灯：搜索慢闪 / 近终点快闪 / 冲刺常亮
-├── Mouse_Nav.h / .c        ★ 8 邻域路径规划 + 冲刺执行
-├── Mouse_Drive.h / .c      PID、编码器、红外/陀螺采样、1 ms 控制环、动作函数
-├── Mouse_Drive_Init.h/.c   时钟、ADC+DMA、TIM1 PWM、TIM2/3 编码器、TIM6
-├── zlg7289.c / .h          数码管 + 键盘
-├── stmflash.c / .h         内部 Flash（地图 / 起点 / 红外阈值）
-├── stm32f10x_it.c / .h     异常向量
-├── Type.h / BitBand.h / Micromouse.h
-├── test/test_nav.c         主机侧 8 邻域规划器测试（不参与固件）
+├── app/                        应用层
+│   ├── main.c                  主状态机：WAIT/START/MAZESEARCH/SPURTL
+│   ├── maze.h                  共享迷宫数据、状态常量、外部变量
+│   ├── maze_search.h / .c      等高图、洪水填充、岔路决策、搜索
+│   ├── path_4dir.h / .c        4 向等高图路径执行
+│   ├── maze_storage.h / .c     地图/起点/红外阈值 Flash 存档
+│   ├── path_8dir.h / .c        8 邻域规划 + 冲刺执行
+│   └── serial_debug.h / .c     USART3 调试串口、地图发送
+├── control/                    控制层
+│   ├── motion_control.h / .c   PID、编码器、红外/陀螺采样、1 ms 控制环、4 向动作
+│   ├── motion_8dir.h / .c      8 向转向、正交/斜向走一格
+│   └── motion_internal.h       motion_control 与 motion_8dir 的内部共享声明
+├── bsp/                        板级支持
+│   ├── board_init.h / .c       时钟、TIM1 PWM、TIM2/3 编码器、按键、MouseInit
+│   ├── sensor_init.h / .c      ADC+DMA、红外发射 GPIO、TIM6 初始化
+│   ├── fan.h / .c              负压风扇（TIM4_CH3/PB8，仅冲刺）
+│   ├── status_led.h / .c       状态灯（PB12：搜索慢闪/近终点快闪/冲刺常亮）
+│   ├── display.h / .c          ZLG7289 数码管 + 键盘
+│   ├── flash.h / .c            内部 Flash 读写
+│   └── interrupts.h / .c       异常向量/中断入口
+├── config/                     配置
+│   ├── mouse_config.h          迷宫尺寸、终点、搜索法则、ONEBLOCK/ONEBLOCK_45
+│   ├── tuning.h                ★ 重点参数集中区（调车先看这里）
+│   ├── types.h                 uint8/int8/fp32 等类型
+│   └── micromouse.h            迷宫坐标/宏定义
+├── util/
+│   ├── delay.h / .c            简单忙等延时
+│   └── bitband.h               位带操作
+├── test/test_path_8dir.c       主机侧 8 邻域规划器测试（不参与固件）
 └── README.md
 ```
 
-参与构建的 10 个 `.c`：
-`main.c`、`Maze_Algo.c`、`Mouse_Drive.c`、`Mouse_Fan.c`、`Mouse_Led.c`、`Mouse_Nav.c`、`Mouse_Drive_Init.c`、`stmflash.c`、`zlg7289.c`、`stm32f10x_it.c`。
+参与构建的 16 个 `.c`：
 
-> IAR 工程需要手动把 `Maze_Algo.c`、`Mouse_Fan.c`、`Mouse_Led.c`、`Mouse_Nav.c` 加入源文件列表。
+- `app/`：`main.c`、`maze_search.c`、`path_4dir.c`、`maze_storage.c`、`path_8dir.c`、`serial_debug.c`
+- `control/`：`motion_control.c`、`motion_8dir.c`
+- `bsp/`：`board_init.c`、`sensor_init.c`、`fan.c`、`status_led.c`、`display.c`、`flash.c`、`interrupts.c`
+- `util/`：`delay.c`
+
+GCC 的包含路径是 `Scr/` 加上各子目录：
+
+```make
+-I$(ROOT)/Scr
+-I$(ROOT)/Scr/app
+-I$(ROOT)/Scr/control
+-I$(ROOT)/Scr/bsp
+-I$(ROOT)/Scr/config
+-I$(ROOT)/Scr/util
+```
+
+> IAR 工程（`Trash/Maze.ewp` 是旧工程）需要手动把上述 16 个 `.c` 加入源文件列表，
+> 并把 `app/control/bsp/config/util` 加入 include path。旧的单目录工程路径已不再适用。
 
 ### 编码约定
 
@@ -232,7 +278,7 @@ ucIRCheck[i] = ADC - Sunlight
 
 ### 4.5 状态灯与负压风扇
 
-**负压风扇**（`Mouse_Fan.c/h`）：
+**负压风扇**（`fan.c/h`）：
 
 - 硬件：TIM4_CH3 → PB8，AF 推挽；
 - `Fan_Init()` 在 `MouseInit()` 里初始化，默认 `CCR3 = 0`（关闭）；
@@ -241,7 +287,7 @@ ucIRCheck[i] = ADC - Sunlight
 - 占空比：`Fan_SetDuty(0..3600)`，`TUNE_FAN_DUTY = 600` 约 16.7%；
 - 如果泵需要全速，先试 `Fan_SetDuty(TUNE_FAN_PWM_PERIOD)`，但注意电池和驱动电流。
 
-**状态灯**（`Mouse_Led.c/h`）：
+**状态灯**（`status_led.c/h`）：
 
 - 硬件：PB12，默认高电平点亮（`TUNE_LED_ACTIVE_HIGH = 1`）；
 - `Led_Tick()` 在 `SysTick_Handler()` 里每 1 ms 调用一次；
@@ -268,9 +314,9 @@ ucIRCheck[i] = ADC - Sunlight
 | P1 | 8 向未计转向代价 | Dijkstra 距离 + 平局少转向 | 不是严格最优路线 |
 | P1 | 没有路径缓存 | 模式 3 每次重新规划 | 冲刺前多花时间，路线不可复用 |
 | P1 | 4 向 `objectGoTo1()` 是贪心 | 只看等高值下降 | 路径可能多绕 |
-| P1 | 冲刺逐格停车 | `mouseGoOneBlock()` 每格 `__stopMotors()` | 不是真正高速冲刺 |
+| P1 | 冲刺逐格停车 | `mouseGoOneBlock()` 每格 `Motion_Stop()` | 不是真正高速冲刺 |
 | P1 | 45°/135° 未实车标定 | 参数按几何推导 | 可能转不准、斜向跑偏 |
-| P2 | 旧动作没有统一超时 | `Mouse_Drive.c` 里 10+ 个 `while(1)` | 堵转/断线会卡死 |
+| P2 | 旧动作没有统一超时 | `motion_control.c` 里 10+ 个 `while(1)` | 堵转/断线会卡死 |
 | P2 | `DenggaoCheck()` 恒为假 | `__GucDistance[__FRONT]` 从未写入 | 搜索中“遇墙停车”失效 |
 | P2 | 地图边界检查不足 | `crosswayCheck()`、`objectGoTo1()` 直接访问 `cX+1/cY+1` | 边缘可能越界 |
 | P2 | 三份墙图分散更新 | `GucMapBlock`、`GucMapBlock0`、`GucMapBlock1` | 可能不一致 |
@@ -412,7 +458,7 @@ make flash
 
 ```bash
 ./debug.sh --ir
-# 停在 TIM6_IRInit 前：IR 发射管关闭、ADC/DMA 已启动
+# 停在 Sensor_IrqInit 前：IR 发射管关闭、ADC/DMA 已启动
 # 进入 gdb 后：irvol / irsave / iron 1..4 / iroff / irtest / c
 ```
 
@@ -420,8 +466,8 @@ make flash
 
 | 构建 | Flash | RAM | 折叠成死循环的函数 |
 |---|---:|---:|---|
-| `-Os` | 28 320 B（21.61%） | 9 208 B（44.96%） | 仅 `HardFault` 等 5 个异常处理 |
-| `-O0` | 45 952 B（35.06%） | 9 240 B（45.12%） | 仅 `LoopForever` |
+| `-Os` | 28 260 B（21.56%） | 9 224 B（45.04%） | 仅 `HardFault` 等 5 个异常处理 |
+| `-O0` | 45 960 B（35.06%） | 9 240 B（45.12%） | 仅 `LoopForever` |
 
 主机侧 8 邻域规划器测试（`make test-nav`，不接硬件）：
 
@@ -438,7 +484,7 @@ make flash
 | 想停在哪 | GDB 命令 | 用途 |
 |---|---|---|
 | 状态机入口 | `break main` | 看启动流程；此时外设还没初始化 |
-| 红外测压 | `./debug.sh --ir` | 停在 `TIM6_IRInit` 前：发射管关闭、ADC 已启动 |
+| 红外测压 | `./debug.sh --ir` | 停在 `Sensor_IrqInit` 前：发射管关闭、ADC 已启动 |
 | 搜索到终点 | `break centralMethodnew` | 模式 1 的探索循环 |
 | 洪水/返回 | `break floodMethodnew` | 搜索结束后的洪水与回程 |
 | 4 向寻路执行 | `break objectGoTo1` | 按等高图逐格走 |
@@ -459,7 +505,7 @@ make flash
 ```text
 st        打印状态机 / 红外标志 / PID / 电机
 params    打印 PID、sRef、红外阈值、陀螺零位
-ready     运行到 main.c:280（初始化完成，可发运动原语）
+ready     运行到 app/main.c:68（初始化完成，可发运动原语）
 fwd       沿当前朝向直行一格（mouseGoOneBlock(0)）
 irvol     红外测压：ADC 原始值 + mV + 环境光差值
 iron 1..4 打开 FL/FR/L/R 发射管并测电压
@@ -471,7 +517,7 @@ c         继续
 
 ```text
 ./debug.sh
-(gdb) ready      # 或 c：从 main 跑到 main.c:280，初始化完成
+(gdb) ready      # 或 c：从 main 跑到 app/main.c:68，初始化完成
 (gdb) fwd        # 沿当前朝向直行一格
 (gdb) st         # 看电机/坐标/状态
 ```
@@ -493,7 +539,7 @@ c         继续
 - `SysTick_Handler` 每 1 ms 进一次，直接断会像“死机”；用
   `ignore <断点号> 100` 或条件断点。
 - 同名静态函数建议用文件限定：
-  `break 'Maze_Algo.c'::floodMethodnew`、`break 'Mouse_Drive.c'::__wallCheck`。
+  `break 'maze_search.c'::floodMethodnew`、`break 'motion_control.c'::__wallCheck`。
 - 正常调试用 `./debug.sh`，红外测压用 `./debug.sh --ir`。
 
 ---
@@ -501,7 +547,7 @@ c         继续
 ## 十、仍然保留、需要实车确认的点
 
 1. **终点 Y 坐标三处不一致**
-   `Mouse_Config.h` 的 `YDST0/YDST1 = 6,6`；`main()` 只把 X 改成 8/7；`goalwall()` 内部按 7/8 处理。本次没有改行为。
+   `mouse_config.h` 的 `YDST0/YDST1 = 6,6`；`main()` 只把 X 改成 8/7；`goalwall()` 内部按 7/8 处理。本次没有改行为。
 2. **TIM6 与 SysTick 双触发**
    `SysTick_Handler()` 仍每 1 ms 手工调用一次 `TIM6_IRQHandler()`，实际约 6 kHz 推进 8 状态机。为保持原时序保留。
 3. **`__GucDistance[__FRONT]` 恒为 0**
@@ -523,21 +569,26 @@ c         继续
 
 | 想改什么 | 去哪里 |
 |---|---|
-| 迷宫大小 / 终点 / 搜索法则 | `Mouse_Config.h` |
-| 速度、PID、贴墙、转向、掉头 | `Mouse_Tuning.h` |
-| 八向速度 / 45° 修正 / 超时 | `Mouse_Tuning.h` 的 `TUNE_8DIR_*` |
-| 斜向一格脉冲 | `Mouse_Config.h` 的 `ONEBLOCK_45` |
-| 红外阈值默认值 | `Mouse_Tuning.h` 的 `TUNE_IR_*_DEFAULT` |
-| 标定查表（mV→mm） | `Mouse_Drive.c` 的 `disCheck0..3` |
-| 8 邻域规划 / 转向代价 | `Mouse_Nav.c` |
-| 动作函数细节 | `Mouse_Drive.c` |
-| 状态机 / Flash / 串口 | `main.c` |
-| 负压风扇 | `Mouse_Fan.c` |
-| 状态灯 | `Mouse_Led.c` |
-| 等高图 / 洪水 / 岔路 / 4 向寻路 | `Maze_Algo.c` |
-| 8 邻域规划 / 转向代价 | `Mouse_Nav.c` |
-| 引脚与外设初始化 | `Mouse_Drive_Init.c` |
-| Flash 分区 | `stmflash.h` |
+| 迷宫大小 / 终点 / 搜索法则 | `mouse_config.h` |
+| 速度、PID、贴墙、转向、掉头 | `tuning.h` |
+| 八向速度 / 45° 修正 / 超时 | `tuning.h` 的 `TUNE_8DIR_*` |
+| 斜向一格脉冲 | `mouse_config.h` 的 `ONEBLOCK_45` |
+| 红外阈值默认值 | `tuning.h` 的 `TUNE_IR_*_DEFAULT` |
+| 标定查表（mV→mm） | `control/motion_control.c` 的 `disCheck0..3` |
+| 8 邻域规划 / 转向代价 | `app/path_8dir.c` |
+| 4 向动作/PID/传感器 | `control/motion_control.c` |
+| 8 向转向/单格 | `control/motion_8dir.c` |
+| 状态机 | `app/main.c` |
+| 地图/起点/红外阈值存档 | `app/maze_storage.c` |
+| 调试串口/地图发送 | `app/serial_debug.c` |
+| 负压风扇 | `bsp/fan.c` |
+| 状态灯 | `bsp/status_led.c` |
+| 等高图 / 洪水 / 岔路 / 搜索 | `app/maze_search.c` |
+| 4 向等高图执行 | `app/path_4dir.c` |
+| 引脚与外设初始化 | `bsp/board_init.c` |
+| ADC/红外/TIM6 初始化 | `bsp/sensor_init.c` |
+| 数码管/键盘 | `bsp/display.c` |
+| Flash 分区/读写 | `bsp/flash.c` |
 
 ---
 
