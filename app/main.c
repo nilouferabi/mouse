@@ -57,6 +57,8 @@ int main(void)
     MouseInit();                                                /*  电脑鼠初始化                 */
     PIDInit();
     ZLG7289Init();
+    Fan_Off();
+    Gyro_Calibrate();                                           /* 上电自动陀螺零位校准          */
     delay(TUNE_DELAY_BOOT);
     //Storage_LoadIrThresholds();                                               /*  需要时打开：从 Flash 载入红外阈值 */
     delay(TUNE_DELAY_BOOT);
@@ -76,27 +78,15 @@ int main(void)
             }
             if ((start == TUNE_START_PRESS_SEARCH) && GucGoHead) {
                 start = 0;
-                zijiaozheng0 = 1;
                 Led_SetMode(LED_MODE_SEARCH);
                 delay(TUNE_DELAY_SETTLE);
                 GucMouseTask = START;
                 delay(TUNE_DELAY_POST_ACTION);
-                zijiaozheng0 = 1;
-            }
-            if (start == TUNE_START_PRESS_CALIB) {
-                start = 0;
-                zijiaozheng0 = 1;
-                Led_SetMode(LED_MODE_SEARCH);
-                delay(TUNE_DELAY_SETTLE);
-                delay(TUNE_DELAY_POST_ACTION);
-                Led_SetMode(LED_MODE_OFF);
-                zijiaozheng0 = 1;
             }
             if ((start >= TUNE_START_PRESS_SPURT_MIN) &&
                 (start < TUNE_START_PRESS_SPURT_MAX) && GucGoHead) {
                 Fan_Off();
                 Led_SetMode(LED_MODE_OFF);
-                zijiaozheng0 = 1;
                 start = 0;
                 Storage_LoadMap();
                 delay(TUNE_DELAY_SETTLE);

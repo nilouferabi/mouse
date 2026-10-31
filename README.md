@@ -86,8 +86,8 @@ make flash
 
 | 构建 | Flash | RAM |
 |---|---:|---:|
-| `-Os` | 28 260 B（21.56%） | 9 224 B（45.04%） |
-| `-O0` | 45 960 B（35.06%） | 9 240 B（45.12%） |
+| `-Os` | 28 340 B（21.62%） | 9 224 B（45.04%） |
+| `-O0` | 46 076 B（35.15%） | 9 240 B（45.12%） |
 
 `make test-nav` 覆盖：
 
@@ -107,7 +107,7 @@ WAIT → START → MAZESEARCH → SPURTL → WAIT
 
 | 状态 | 当前行为 |
 |---|---|
-| `WAIT` | 扫描红外，等待按键；按 1 次进入搜索，按 3~4 次直接冲刺，按 8 次做陀螺校准 |
+| `WAIT` | 扫描红外，等待按键；按 1 次进入搜索，按 3~4 次直接冲刺；陀螺零位在上电时自动校准 |
 | `START` | 执行第一段 `mazeSearch()`，必要时处理左侧起点镜像 |
 | `MAZESEARCH` | 中心法则探索到终点/无支路，保存地图，回到起点 |
 | `SPURTL` | 读取地图，执行 8 向冲刺；无斜向通路时回退 4 向 `mouseSpurt_CC()` |
@@ -372,9 +372,14 @@ return (table[index] - table[index + 1]) * frac + table[index + 1];
 
 ### 陀螺
 
+上电后 `Gyro_Calibrate()` 在电机停止、车辆静止时采样约 3 秒，
+同时更新 `zijiaozheng`（用于 `jiao`）和 `voltageDetectRef`（用于 `GW`）。
+校准期间不要移动车体。
+
+
 - `GW`：陀螺偏离零位的绝对值累加，用于 90°/180° 判据；
 - `jiao`：有符号陀螺积分角，用于 8 向斜向和原地转向；
-- `voltageDetectRef`：上电零漂校准值；
+- `voltageDetectRef`：上电自动零漂校准值；
 - 陀螺零位、比例、灵敏度在 `config/tuning.h`。
 
 ## 十一、风扇与状态灯

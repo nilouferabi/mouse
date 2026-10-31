@@ -175,6 +175,7 @@
 #define TUNE_GYRO_SYSTEM_PARAM          3.96        /* 系统参数（原注释）                          */
 #define TUNE_GYRO_ANGLE_RANGE           360         /* 角度换算分母                                */
 #define TUNE_GYRO_CAL_SAMPLES           3000        /* 上电零漂校准采样点数                        */
+#define TUNE_GYRO_CAL_TIMEOUT_MS        5000        /* 上电零漂校准超时                            */
 #define TUNE_GYRO_TRAPEZOID             0.5         /* 陀螺积分梯形系数                            */
 #define TUNE_CONTROL_DT_S               0.001       /* 控制周期 1 ms（积分用）                     */
 
@@ -202,7 +203,6 @@
 #define TUNE_START_PRESS_SEARCH         1           /* START 按 1 次：搜索                        */
 #define TUNE_START_PRESS_SPURT_MIN      3           /* START 按 3~4 次：读 Flash 地图直接冲刺      */
 #define TUNE_START_PRESS_SPURT_MAX      5
-#define TUNE_START_PRESS_CALIB          8           /* START 按 8 次：只做陀螺零漂校准             */
 #define TUNE_GOAL_X0                    8           /* 全迷宫中心目标 X（运行期覆盖值）            */
 #define TUNE_GOAL_X1                    7
 #define TUNE_START_MARK                 15          /* Flash 中“起点在左上角”的标记                */

@@ -136,7 +136,8 @@ uint8 PulseCtrCheck(void);
 void  MouseInit(void);
 
 extern __PID __GmSPID;
-extern uint8 zijiaozheng0;
+extern volatile uint8 zijiaozheng0;
+uint8 Gyro_Calibrate(void);
 
 #endif
 /*********************************************************************************************************
