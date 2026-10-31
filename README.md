@@ -458,14 +458,48 @@ return mm[i] + (mm[i + 1] - mm[i]) * (mv - mv[i]) / (mv[i + 1] - mv[i]);
 | 红外标定 | 4 路 × 6 点 | 见 `motion_control.c` |
 | 地图存档 | `TUNE_FLASH_MAP_WORDS` | 256 |
 
-调参顺序：
+### 需要实车测量的参数
 
-1. `ONEBLOCK` / `ONEBLOCK_45`：先保证一格和斜一格的实际距离；
-2. 红外阈值：保证墙判定稳定；
-3. `TUNE_WALL_*`：调贴墙目标与有效距离；
-4. PID：先 `KP`，再少量 `KI`，最后考虑 `KD`；
-5. 转向阈值/脉冲：90° 先准，再 45°/135°/180°；
-6. 8 向速度/陀螺增益：最后提速。
+标记说明：
+
+- ★ 必须实测/标定，否则不要直接高速跑；
+- ○ 可以先给初值，再试跑微调；
+- — 配置项，不需要测。
+
+| 标记 | 参数 | 去哪里改 | 怎么测 | 修改方式 |
+|---|---|---|---|---|
+| ★ | `ONEBLOCK` | `config/mouse_config.h` | 架空或空地走一格，量车体中心实际位移；重复 3~5 次取平均 | 实际走多了就减小，走少了就增大；按 `旧值 × 目标距离 / 实际距离` 调 |
+| ★ | `ONEBLOCK_45` | `config/mouse_config.h` | 2×2 空方块走斜向一格，量实际对角线位移 | 同 `ONEBLOCK`，按比例调整；先保证正交准确再调斜向 |
+| ★ | 4 路 6 点表 `irMvFL/FR/L/R`、`irMmFL/FR/L/R` | `control/motion_control.c` | 每路单独：墙面放在 6 个已知距离（如 50/75/100/150/200/300 mm），读对应 `ucIRCheck → mV` | 每个传感器 6 组 `(mV, mm)`；`irMv*` 必须升序、`irMm*` 对应降序；改完重新编译 |
+| ★ | 4 路红外阈值 `TUNE_IR_FL/FR/L/R_*_DEFAULT` | `config/tuning.h` | 在“应该判有墙/无墙”的距离读 `ucIRCheck`，取中间值并留回差 | 按每个传感器分别改 Near/Far；不要四路共用一个值 |
+| ★ | 红外饱和 `TUNE_IR_FL/FR/L/R_SAT` | `config/tuning.h` | 近距离贴墙，观察 `ucIRCheck` 最大值和噪声 | 超过实际最大读数并留余量；不要设得比正常读数还低 |
+| ★ | `TUNE_WALL_L/R_TARGET_DIST` | `config/tuning.h` | 车在走廊中间，量左右墙实际距离；看 `leftdis/rightdis` | 目标墙距按车体宽度和赛道调；左 75/右 100 只是初值 |
+| ★ | `TUNE_WALL_L/R_ACTIVE_DIST` | `config/tuning.h` | 逐渐拉远墙，直到贴墙修正开始/结束 | 保证目标距离以内有效，又不会把远处墙误当侧墙 |
+| ★ | `TUNE_TURN90_W_SEARCH_R/L`、`_C_R/L` | `config/tuning.h` | 用角度尺/陀螺仪看 90° 转到位时的 `GW` 值 | 转不够就减小阈值，转过头就增大；搜索段和冲刺段分开标 |
+| ★ | `TUNE_TURN90_PULSE_*` | `config/tuning.h` | 90° 转完后量车是否到下一格中心 | 转后走多了减小脉冲，走少了增大 |
+| ★ | `TUNE_TURNBACK_GW_*`、`TUNE_TURNBACK_*_PULSE` | `config/tuning.h` | 180° 掉头，量最终朝向和回程位置 | 先调 `GW` 判据，再调回程脉冲 |
+| ○ | `SEARCHSPEED` | `config/mouse_config.h` | 低速跑完整迷宫，看是否丢步/撞墙/停车 | 先低后高；不要用高速值直接做第一次实车 |
+| ○ | `TUNE_PID_KP/KI/KD` | `config/tuning.h` | 直行给阶跃目标，看速度响应和过冲 | 先 `KP`，再加少量 `KI`；`KD` 一般先 0 |
+| ○ | `TUNE_PID_U_MAX` | `config/tuning.h` | 观察急加速/转弯时 PWM 是否饱和 | TIM1 ARR=2880，1400 约 48.6%；根据驱动和电池调 |
+| ○ | `TUNE_8DIR_TURN_TRIM_R/L` | `config/tuning.h` | 只在使用 8 向时：转 45/90/135/180，量实际角度 | 转不够调大，转过头调小；左右分开 |
+| ○ | `TUNE_8DIR_SPEED_ORTHO/DIAG` | `config/tuning.h` | 只在使用 8 向时：空地和斜向试跑 | 先 80~100，确认不丢步再提速 |
+| ○ | `TUNE_8DIR_GYRO_FF` | `config/tuning.h` | 只在使用 8 向时：斜向直行看是否跑偏 | 跑偏方向回正不够就增大；抖动就减小 |
+| ○ | `TUNE_FAN_DUTY` | `config/tuning.h` | 测负压吸力、泵电流、电池压降 | 600 是 16.7%；泵起不来可先试 1800/3600，注意电流 |
+| — | `TUNE_START_WINDOW_MS` | `config/tuning.h` | 人手连按节奏 | 当前 1000 ms；不好按可改 600~1200 |
+| — | `TUNE_8DIR_ENABLE` | `config/tuning.h` | 选择 4 向/8 向冲刺 | 当前 0；改 1 启用 8 向 |
+| — | `XDST0/1`、`YDST0/1`、`TUNE_GOAL_X0/X1`、`goalwall()` | `mouse_config.h` / `maze_search.c` | 终点坐标是配置，不是测量 | 当前坐标不一致，先统一成中心 2×2 再跑 |
+
+> `TUNE_GYRO_ZERO_DEFAULT` 是自动校准失败时的后备值，正常不需要手动测；
+> 如果更换陀螺或发现 `jiao/GW` 比例不对，再用转台标定 `TUNE_GYRO_GW_SCALE` 和 `TUNE_GYRO_SENSITIVITY_MV`。
+
+**建议标定顺序：**
+
+1. `ONEBLOCK` / `ONEBLOCK_45`；
+2. 四路 6 点红外表和四路阈值；
+3. 贴墙目标/有效距离；
+4. 90°/180° 的 `GW` 和脉冲；
+5. PID、搜索速度；
+6. 最后才开 8 向、调 45°/135° 和风扇。
 
 ## 十四、调试
 
