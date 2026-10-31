@@ -37,6 +37,12 @@
 #define __FRONTR            3                                           /*  右前方传感器                */
 #define __RIGHT             4                                           /*  右方传感器                  */
 
+/* ucIRCheck[] 下标：与物理四路传感器一一对应 */
+#define IR_CH_FL             0
+#define IR_CH_FR             1
+#define IR_CH_L              2
+#define IR_CH_R              3
+
 
 /*********************************************************************************************************
   电脑鼠状态
@@ -137,6 +143,7 @@ void  MouseInit(void);
 
 extern __PID __GmSPID;
 extern volatile uint8 zijiaozheng0;
+extern volatile uint32 GucSysTickMs;
 uint8 Gyro_Calibrate(void);
 
 #endif

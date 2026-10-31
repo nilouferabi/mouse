@@ -148,9 +148,12 @@
 #define TUNE_ADC_VREF_MV                3300        /* ADC 参考电压 mV                             */
 #define TUNE_ADC_FULL_SCALE             4096        /* 12 位 ADC 满量程                            */
 #define TUNE_IR_R_SAT                   35000       /* 右红外饱和上限                              */
-#define TUNE_IR_FRONT_SAT               30000       /* 前左/前右红外饱和上限                       */
-#define TUNE_IR_R_OFFSET_MV             300         /* 右侧查表起点 mV                             */
-#define TUNE_IR_R_STEP_MV               15          /* 右侧查表步长 mV                             */
+#define TUNE_IR_FL_SAT                  30000       /* 前左红外饱和上限                            */
+#define TUNE_IR_FR_SAT                  30000       /* 前右红外饱和上限                            */
+#define TUNE_IR_L_SAT                   30000       /* 左红外饱和上限                              */
+/* 旧 201 点表参数：仅保留 disCheck0/1 参考表，新逻辑不再使用 */
+#define TUNE_IR_R_OFFSET_MV             300
+#define TUNE_IR_R_STEP_MV               15
 #define TUNE_IR_FILTER_SIZE             8           /* 陀螺滑动窗口长度                            */
 #define TUNE_IR_FILTER_SUM_COUNT        6           /* 去最大最小后参与平均的点数                  */
 #define TUNE_IR_STATE_COUNT             8           /* TIM6 红外轮询状态数                         */
@@ -183,7 +186,7 @@
   [9] 八向冲刺（4 向搜索完成后的斜线加速）
     方向编号：0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW
 ======================================================================================================*/
-#define TUNE_8DIR_ENABLE                1           /* 1: 冲刺阶段启用 8 邻域 + 斜向；0: 保持 4 向 */
+#define TUNE_8DIR_ENABLE                0           /* 当前先用 4 向冲刺；后续可改 1 启用 8 向 */
 #define TUNE_8DIR_SPEED_ORTHO           180         /* 正交直行最高速（每 1 ms 脉冲）              */
 #define TUNE_8DIR_SPEED_DIAG            150         /* 斜向直行最高速                              */
 #define TUNE_8DIR_TURN_SPIN             120         /* 原地转向方向环设定（差速 PWM）              */
@@ -200,9 +203,9 @@
 /*======================================================================================================
   [10] 流程 / 外设 / 存储
 ======================================================================================================*/
-#define TUNE_START_PRESS_SEARCH         1           /* START 按 1 次：搜索                        */
-#define TUNE_START_PRESS_SPURT_MIN      3           /* START 按 3~4 次：读 Flash 地图直接冲刺      */
-#define TUNE_START_PRESS_SPURT_MAX      5
+#define TUNE_START_PRESS_SEARCH         1           /* START 1 次：探图                           */
+#define TUNE_START_PRESS_SPRINT         2           /* START 2 次：检查地图后冲刺                  */
+#define TUNE_START_WINDOW_MS            1000        /* 连按计数窗口                                */
 #define TUNE_GOAL_X0                    8           /* 全迷宫中心目标 X（运行期覆盖值）            */
 #define TUNE_GOAL_X1                    7
 #define TUNE_START_MARK                 15          /* Flash 中“起点在左上角”的标记                */

@@ -45,8 +45,10 @@ static uint8 GucMouseTask = WAIT;                                 /*  状态机�
 
 int main(void)
 {
-    uint8 ucTemp = 0;                                           /*  START 状态中坐标转换         */
-    uint8 start  = 0;                                           /*  START 按键次数               */
+    uint8  ucTemp = 0;                                          /*  START 状态中坐标转换         */
+    uint8  pressCount = 0;                                     /*  1 秒窗口内按键次数           */
+    uint8  windowActive = 0;                                   /*  按键计数窗口是否打开         */
+    uint32 windowStart = 0;                                    /*  窗口开始时刻（ms）           */
 #if TUNE_8DIR_ENABLE
     uint8 nav    = NAV_NO_PATH;                                 /*  8 向冲刺结果                 */
 #endif
@@ -73,31 +75,53 @@ int main(void)
             sensorDebug();                                      /*  检查红外                     */
             delay(TUNE_DELAY_SENSOR_REFRESH);
 
+            /* 1 秒窗口内统计 START 按下次数：1 次探图，2 次冲刺 */
             if (startCheck() == true) {
-                start++;
+                if (!windowActive) {
+                    windowActive = 1;
+                    pressCount = 1;
+                    windowStart = GucSysTickMs;
+                }
+                else if ((uint32)(GucSysTickMs - windowStart) <= TUNE_START_WINDOW_MS) {
+                    pressCount++;
+                }
             }
-            if ((start == TUNE_START_PRESS_SEARCH) && GucGoHead) {
-                start = 0;
-                Led_SetMode(LED_MODE_SEARCH);
-                delay(TUNE_DELAY_SETTLE);
-                GucMouseTask = START;
-                delay(TUNE_DELAY_POST_ACTION);
-            }
-            if ((start >= TUNE_START_PRESS_SPURT_MIN) &&
-                (start < TUNE_START_PRESS_SPURT_MAX) && GucGoHead) {
-                Fan_Off();
-                Led_SetMode(LED_MODE_OFF);
-                start = 0;
-                Storage_LoadMap();
-                delay(TUNE_DELAY_SETTLE);
-                Storage_LoadStart();
-                delay(TUNE_DELAY_SETTLE);
-                delay(TUNE_DELAY_POST_ACTION);
-                delay(TUNE_DELAY_POST_ACTION);
-                delay(TUNE_DELAY_POST_ACTION);
-                delay(TUNE_DELAY_POST_ACTION);
-                GucMouseTask = SPURTL;
-                delay(TUNE_DELAY_POST_ACTION);
+
+            if (windowActive &&
+                ((uint32)(GucSysTickMs - windowStart) >= TUNE_START_WINDOW_MS)) {
+                windowActive = 0;
+
+                if ((pressCount == TUNE_START_PRESS_SEARCH) && GucGoHead) {
+                    Led_SetMode(LED_MODE_SEARCH);
+                    delay(TUNE_DELAY_SETTLE);
+                    GucMouseTask = START;
+                    delay(TUNE_DELAY_POST_ACTION);
+                }
+                else if ((pressCount == TUNE_START_PRESS_SPRINT) && GucGoHead) {
+                    Fan_Off();
+                    Led_SetMode(LED_MODE_OFF);
+
+                    Storage_LoadMap();
+                    delay(TUNE_DELAY_SETTLE);
+                    Storage_LoadStart();
+                    delay(TUNE_DELAY_SETTLE);
+                    goalwall();
+
+                    if (Path4_CanReachGoal()) {
+                        Led_SetMode(LED_MODE_SPRINT);
+                        GucMouseTask = SPURTL;
+                    }
+                    else {
+                        Led_SetMode(LED_MODE_OFF);
+                        GucMouseTask = WAIT;
+                    }
+                    delay(TUNE_DELAY_POST_ACTION);
+                }
+                else {
+                    Fan_Off();
+                    Led_SetMode(LED_MODE_OFF);
+                }
+                pressCount = 0;
             }
             break;
 
@@ -146,7 +170,9 @@ int main(void)
             objectGoTo1(GucXStart, GucYStart);
             mouseTurnbackqi();
             delay(TUNE_DELAY_SETTLE);
-            GucMouseTask = SPURTL;
+            Fan_Off();
+            Led_SetMode(LED_MODE_OFF);
+            GucMouseTask = WAIT;
             break;
 
         case SPURTL:                                            /*  一冲（普通冲刺 / 8 向冲刺）  */
@@ -172,10 +198,7 @@ int main(void)
             mouseSpurt_CC();
 #endif
 
-            mouseTurnback();
-            objectGoTo1(GucXStart, GucYStart);
-            onestep3();
-            mouseTurnbackqidian();
+            mouseStop();
             Fan_Off();
             Led_SetMode(LED_MODE_OFF);
             GucMouseTask = WAIT;

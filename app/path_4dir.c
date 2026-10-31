@@ -129,6 +129,33 @@ void objectGoTo1(int8  cXdst, int8  cYdst)
 
 
 
+uint8 Path4_CanReachGoal(void)
+{
+    uint8 xs[4];
+    uint8 ys[4];
+    uint8 exitMask[4] = {0x0c, 0x09, 0x06, 0x03};
+    uint8 i;
+
+    xs[0] = GucXGoal0; ys[0] = GucYGoal0;
+    xs[1] = GucXGoal0; ys[1] = GucYGoal1;
+    xs[2] = GucXGoal1; ys[2] = GucYGoal0;
+    xs[3] = GucXGoal1; ys[3] = GucYGoal1;
+
+    for (i = 0; i < 4; i++)
+    {
+        if ((xs[i] >= MAZETYPE) || (ys[i] >= MAZETYPE))
+            continue;
+        if ((GucMapBlock[xs[i]][ys[i]] & exitMask[i]) == 0)
+            continue;
+
+        mapStepEdit((int8)xs[i], (int8)ys[i]);
+        if (GucMapStep[GucXStart][GucYStart] != 0xFF)
+            return 1;
+    }
+
+    return 0;
+}
+
 void mouseSpurt_CC (void)
 {
     uint8 ucTemp = 0xff;

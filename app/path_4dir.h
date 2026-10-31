@@ -9,6 +9,7 @@
 #include "types.h"
 
 void objectGoTo1(int8 cXdst, int8 cYdst);
+uint8 Path4_CanReachGoal(void);
 void mouseSpurt_CC(void);
 
 #endif

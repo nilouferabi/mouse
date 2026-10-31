@@ -1,13 +1,13 @@
 # mouse —— 启诚智能鼠固件
 
-STM32F103CB 电脑鼠固件：4 向迷宫搜索、8 向冲刺、红外墙图、编码器/陀螺转向、负压风扇和状态灯。
+STM32F103CB 电脑鼠固件：4 向迷宫搜索、4 向冲刺（8 向代码保留，当前默认关闭）、红外墙图、编码器/陀螺转向、负压风扇和状态灯。
 
 ---
 
 ## 一、当前功能
 
 - 4 向探索：每次正交走一格，用左右/前左/前右红外更新墙图；
-- 8 向冲刺：地图可用后做 8 邻域路径规划，允许 45° 斜向；
+- 8 向冲刺代码保留；当前 `TUNE_8DIR_ENABLE = 0`，冲刺先走 4 向；
 - 搜索阶段不使用斜向，保证识墙可靠；
 - 冲刺阶段支持斜向，但斜向必须满足 2×2 方块内部无墙，避免切角；
 - 负压风扇只在冲刺阶段打开；
@@ -86,8 +86,8 @@ make flash
 
 | 构建 | Flash | RAM |
 |---|---:|---:|
-| `-Os` | 28 340 B（21.62%） | 9 224 B（45.04%） |
-| `-O0` | 46 076 B（35.15%） | 9 240 B（45.12%） |
+| `-Os` | 25 144 B（19.18%） | 6 832 B（33.36%） |
+| `-O0` | 41 524 B（31.68%） | 6 856 B（33.48%） |
 
 `make test-nav` 覆盖：
 
@@ -107,12 +107,14 @@ WAIT → START → MAZESEARCH → SPURTL → WAIT
 
 | 状态 | 当前行为 |
 |---|---|
-| `WAIT` | 扫描红外，等待按键；按 1 次进入搜索，按 3~4 次直接冲刺；陀螺零位在上电时自动校准 |
+| `WAIT` | 扫描红外；1 秒窗口内按 1 次进入探图，按 2 次检查地图通路后冲刺；3 次及以上回停止；陀螺零位在上电时自动校准 |
 | `START` | 执行第一段 `mazeSearch()`，必要时处理左侧起点镜像 |
-| `MAZESEARCH` | 中心法则探索到终点/无支路，保存地图，回到起点 |
-| `SPURTL` | 读取地图，执行 8 向冲刺；无斜向通路时回退 4 向 `mouseSpurt_CC()` |
+| `MAZESEARCH` | 中心法则探索到终点/无支路，保存地图，回到起点后停止 |
+| `SPURTL` | 读取地图，冲刺前用 `Path4_CanReachGoal()` 检查 4 向通路；有路执行 `mouseSpurt_CC()`，到终点停止；无路回 `WAIT` |
 
 冲刺结束或中止后回到 `WAIT`。
+
+> 当前 1/2 次模式仍要求 `GucGoHead == 1`（起点姿态判据）；否则按键只计数，不启动。
 
 ## 五、格子、坐标和终点
 
@@ -221,6 +223,10 @@ else {
 - 无支路时用 `floodMethodnew()` 继续洪水/回程。
 
 ## 七、4 向回程与 8 向冲刺
+
+> 当前 `TUNE_8DIR_ENABLE = 0`，实际冲刺使用 `mouseSpurt_CC()` 的 4 向路径。
+> 下面的 8 向流程是保留的可选实现，改回 1 后启用。
+
 
 ### 4 向路径
 
@@ -354,20 +360,28 @@ ucIRCheck[i] = ADC - Sunlight
 
 ### 连续距离
 
-左右墙距离 `leftdis/rightdis` 通过 `disCheck2/3` 查表得到 mm：
+左右墙距离 `leftdis/rightdis` 使用四路独立 6 点表做分段线性插值：
 
 ```c
-index = (mv - offset) / step;
-frac  = ((int)mv - offset) % step / step;
-return (table[index] - table[index + 1]) * frac + table[index + 1];
+/* mV 升序、mm 降序；先做上下界钳位，再找相邻两点 */
+if (mv <= mv[0]) return mm[0];
+if (mv >= mv[5]) return mm[5];
+
+for (i = 0; i < 5; i++)
+    if (mv <= mv[i + 1]) break;
+
+return mm[i] + (mm[i + 1] - mm[i]) * (mv - mv[i]) / (mv[i + 1] - mv[i]);
 ```
 
 当前状态：
 
-- `disCheck2` 用于左墙，`disCheck3` 用于右墙；
-- `disCheck0/1` 当前未被使用；
-- 表为 201 点，非 `const`，链接后仍占用 RAM；
-- 前方传感器只使用阈值，不使用距离表；
+- 四路独立校准：`FL / FR / L / R`；
+- 每路 6 个标定点，`Ir_Distance()` 做分段线性插值；
+- 数组按 mV 升序、mm 降序排列；
+- 插值前做上下界钳位，不会访问表外索引；
+- `disCheck0/1` 是保留的旧 201 点参考表，当前不参与计算；
+- 旧 `disCheck2/3` 表已移除，新逻辑使用 6 点表；
+- 前方距离也会计算到 `fldis/frdis`，但墙图仍以阈值为准；
 - 没有 magic/CRC 的红外阈值存档，`Storage_LoadIrThresholds()` 默认未被调用。
 
 ### 陀螺
@@ -426,6 +440,7 @@ return (table[index] - table[index + 1]) * frac + table[index + 1];
 | 一格脉冲 | `ONEBLOCK` | 51600 |
 | 斜向脉冲 | `ONEBLOCK_45` | 36410 |
 | 搜索速度 | `SEARCHSPEED` | 由 `mouse_config.h` 配置 |
+| 冲刺模式 | `TUNE_8DIR_ENABLE` | 0（当前 4 向） |
 | 8 向速度 | `TUNE_8DIR_SPEED_ORTHO/DIAG` | 180 / 150 |
 | 90° 转向速度 | `TUNE_TURN_SPEED` | 145 |
 | 掉头回程 | `TUNE_TURNBACK_RETURN_SPEED` | 150 |
@@ -439,6 +454,8 @@ return (table[index] - table[index + 1]) * frac + table[index + 1];
 | 8 向超时 | `TUNE_8DIR_TURN/MOVE_TIMEOUT_MS` | 2000 / 6000 |
 | 风扇 | `TUNE_FAN_DUTY` / `TUNE_FAN_PWM_PERIOD` | 600 / 3600 |
 | 灯 | `TUNE_LED_ACTIVE_HIGH` | 1 |
+| 按键窗口 | `TUNE_START_WINDOW_MS` | 1000 ms |
+| 红外标定 | 4 路 × 6 点 | 见 `motion_control.c` |
 | 地图存档 | `TUNE_FLASH_MAP_WORDS` | 256 |
 
 调参顺序：
@@ -457,7 +474,7 @@ return (table[index] - table[index + 1]) * frac + table[index + 1];
 | 位置 | GDB 命令 | 用途 |
 |---|---|---|
 | 状态机入口 | `break main` | 启动流程 |
-| 初始化完成 | `ready` | 停到 `app/main.c:68`，可调用运动原语 |
+| 初始化完成 | `ready` | 停到 `app/main.c:72`，可调用运动原语 |
 | 红外测压 | `./debug.sh --ir` | 停在 `Sensor_IrqInit` 前 |
 | 搜索到终点 | `break centralMethodnew` | 探索循环 |
 | 洪水/回程 | `break floodMethodnew` | 搜索结束后的洪水与回程 |
@@ -477,7 +494,7 @@ return (table[index] - table[index + 1]) * frac + table[index + 1];
 ```text
 st        状态机 / 红外 / PID / 电机
 params    PID、sRef、红外阈值、陀螺零位
-ready     运行到 app/main.c:68
+ready     运行到 app/main.c:72
 fwd       沿当前朝向直行一格（mouseGoOneBlock(0)）
 irvol     红外测压：ADC + mV + 环境光差值
 iron 1..4 打开 FL/FR/L/R 发射管并测电压
@@ -530,14 +547,14 @@ c         继续
 7. **`uiPulse = MAZETYPE * ONEBLOCK` 不是硬停止条件**
    每格会递减，但循环没有在 `uiPulse` 到 0 时强制退出。
 
-8. **8 向中止没有错误码**
+8. **启用 8 向时中止没有错误码**
    `mouseSpurt_8_to_goal()` 返回 `NAV_ABORT` 时主状态机停车回 `WAIT`，但不区分转向超时、直行超时、前向安全还是无路。
 
 9. **两侧都有墙时只跟左墙**
    `if / else if` 的结构决定右侧不参与同时居中。
 
 10. **红外距离表**
-    `disCheck2/3` 是 201 点 float 表，占 RAM；`disCheck0/1` 未使用；没有按传感器分别校准/回差；前方只用阈值。
+    当前四路各 6 点标定，`disCheck0/1` 旧表仅保留参考；6 点初始值由旧表抽样，必须按实车传感器/墙面重新标定。
 
 11. **TIM6 与 SysTick 双触发**
     `SysTick_Handler()` 每 1 ms 手动调用一次 `TIM6_IRQHandler()`，实际约 6 kHz 推进 8 状态机。
@@ -557,10 +574,11 @@ c         继续
 |---|---|
 | 迷宫大小 / 终点 / 搜索法则 | `config/mouse_config.h` |
 | 速度、PID、贴墙、转向、掉头 | `config/tuning.h` |
+| 4/8 向冲刺开关 | `config/tuning.h` 的 `TUNE_8DIR_ENABLE` |
 | 8 向速度 / 角度修正 / 超时 | `config/tuning.h` 的 `TUNE_8DIR_*` |
 | 斜向一格脉冲 | `config/mouse_config.h` 的 `ONEBLOCK_45` |
 | 红外阈值默认值 | `config/tuning.h` 的 `TUNE_IR_*_DEFAULT` |
-| 红外距离表 | `control/motion_control.c` 的 `disCheck2/3` |
+| 红外 6 点表 | `control/motion_control.c` 的 `irMv*/irMm*` |
 | 8 邻域规划 | `app/path_8dir.c` |
 | 4 向动作/PID/传感器 | `control/motion_control.c` |
 | 8 向转向/单格 | `control/motion_8dir.c` |
